@@ -1,7 +1,7 @@
 import '../../editor/editor.api.js';
 /*!-----------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation. All rights reserved.
- * Version: 0.33.0(3c29a0e78a1ba4c602ff36ef78f0a575ce1949b6)
+ * Version: 0.33.0(4905f3a86a1a33bff56fac397b489816f8b4ae46)
  * Released under the MIT license
  * https://github.com/microsoft/monaco-editor/blob/main/LICENSE.txt
  *-----------------------------------------------------------------------------*/
