@@ -1222,3 +1222,4 @@ define(["require", "exports", "../test/testRunner"], function (require, exports,
         ]
     ]);
 });
+//# sourceMappingURL=hcl.test.js.map

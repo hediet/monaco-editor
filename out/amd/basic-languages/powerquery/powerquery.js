@@ -894,3 +894,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=powerquery.js.map

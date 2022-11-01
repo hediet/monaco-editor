@@ -845,3 +845,4 @@ define(["require", "exports", "../test/testRunner"], function (require, exports,
         ]
     ]);
 });
+//# sourceMappingURL=powershell.test.js.map

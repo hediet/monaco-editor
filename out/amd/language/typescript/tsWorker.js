@@ -505,3 +505,4 @@ define(["require", "exports", "./lib/typescriptServices", "./lib/lib"], function
     // @ts-ignore
     globalThis.ts = ts.typescript;
 });
+//# sourceMappingURL=tsWorker.js.map

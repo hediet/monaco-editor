@@ -383,3 +383,4 @@ define(["require", "exports", "../test/testRunner"], function (require, exports,
         ]
     ]);
 });
+//# sourceMappingURL=powerquery.test.js.map

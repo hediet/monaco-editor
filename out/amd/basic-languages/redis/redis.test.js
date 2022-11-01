@@ -269,3 +269,4 @@ define(["require", "exports", "../test/testRunner"], function (require, exports,
         ]
     ]);
 });
+//# sourceMappingURL=redis.test.js.map

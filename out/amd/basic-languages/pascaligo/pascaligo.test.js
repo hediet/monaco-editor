@@ -132,3 +132,4 @@ define(["require", "exports", "../test/testRunner"], function (require, exports,
         ]
     ]);
 });
+//# sourceMappingURL=pascaligo.test.js.map

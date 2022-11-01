@@ -203,3 +203,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=sparql.js.map

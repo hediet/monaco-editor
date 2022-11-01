@@ -236,3 +236,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=coffee.js.map

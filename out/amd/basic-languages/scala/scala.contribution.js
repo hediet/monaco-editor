@@ -22,3 +22,4 @@ define(["require", "exports", "../_.contribution"], function (require, exports, 
         }
     });
 });
+//# sourceMappingURL=scala.contribution.js.map

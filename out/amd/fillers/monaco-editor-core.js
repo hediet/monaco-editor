@@ -21,3 +21,4 @@ define(["require", "exports", "monaco-editor-core"], function (require, exports,
     Object.defineProperty(exports, "__esModule", { value: true });
     __exportStar(monaco_editor_core_1, exports);
 });
+//# sourceMappingURL=monaco-editor-core.js.map

@@ -813,3 +813,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=redshift.js.map

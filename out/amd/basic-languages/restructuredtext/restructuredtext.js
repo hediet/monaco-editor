@@ -178,3 +178,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=restructuredtext.js.map

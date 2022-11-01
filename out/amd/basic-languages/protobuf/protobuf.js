@@ -420,3 +420,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=protobuf.js.map

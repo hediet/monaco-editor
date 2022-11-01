@@ -1069,3 +1069,4 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
         language: createMonarchLanguageAuto(InterpolationSyntaxBracket)
     };
 });
+//# sourceMappingURL=freemarker2.js.map

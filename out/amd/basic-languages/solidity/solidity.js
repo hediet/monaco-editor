@@ -1370,3 +1370,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=solidity.js.map

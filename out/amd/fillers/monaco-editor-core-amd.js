@@ -6,3 +6,4 @@ define(["require", "exports", "vs/editor/editor.api"], function (require, export
     "use strict";
     return api;
 });
+//# sourceMappingURL=monaco-editor-core-amd.js.map

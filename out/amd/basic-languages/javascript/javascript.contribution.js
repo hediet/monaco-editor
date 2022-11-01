@@ -24,3 +24,4 @@ define(["require", "exports", "../_.contribution"], function (require, exports, 
         }
     });
 });
+//# sourceMappingURL=javascript.contribution.js.map

@@ -1304,3 +1304,4 @@ define(["require", "exports", "./monaco.contribution", "./lib/lib.index", "../..
     }(Adapter));
     exports.InlayHintsAdapter = InlayHintsAdapter;
 });
+//# sourceMappingURL=languageFeatures.js.map

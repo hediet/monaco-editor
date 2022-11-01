@@ -267,3 +267,4 @@ define(["require", "exports", "vscode-json-languageservice", "vscode-uri"], func
     }
     exports.create = create;
 });
+//# sourceMappingURL=jsonWorker.js.map

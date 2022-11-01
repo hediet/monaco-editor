@@ -108,3 +108,4 @@ define(["require", "exports", "../_.contribution"], function (require, exports, 
         }
     });
 });
+//# sourceMappingURL=freemarker2.contribution.js.map

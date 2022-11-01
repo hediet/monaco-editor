@@ -72,3 +72,4 @@ define(["require", "exports", "../typescript/typescript"], function (require, ex
         tokenizer: typescript_1.language.tokenizer
     };
 });
+//# sourceMappingURL=javascript.js.map

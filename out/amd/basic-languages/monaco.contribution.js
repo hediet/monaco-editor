@@ -6,3 +6,4 @@ define(["require", "exports", "./abap/abap.contribution", "./apex/apex.contribut
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
 });
+//# sourceMappingURL=monaco.contribution.js.map

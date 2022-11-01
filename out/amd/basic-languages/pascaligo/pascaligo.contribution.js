@@ -21,3 +21,4 @@ define(["require", "exports", "../_.contribution"], function (require, exports, 
         }
     });
 });
+//# sourceMappingURL=pascaligo.contribution.js.map

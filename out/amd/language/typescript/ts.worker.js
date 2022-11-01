@@ -14,3 +14,4 @@ define(["require", "exports", "monaco-editor-core/esm/vs/editor/editor.worker", 
     };
     Object.defineProperty(exports, "create", { enumerable: true, get: function () { return tsWorker_2.create; } });
 });
+//# sourceMappingURL=ts.worker.js.map

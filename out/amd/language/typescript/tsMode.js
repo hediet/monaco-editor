@@ -76,3 +76,4 @@ define(["require", "exports", "./workerManager", "./languageFeatures", "../../fi
     Object.defineProperty(exports, "WorkerManager", { enumerable: true, get: function () { return workerManager_2.WorkerManager; } });
     __exportStar(languageFeatures_1, exports);
 });
+//# sourceMappingURL=tsMode.js.map

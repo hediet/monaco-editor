@@ -198,3 +198,4 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
         }
     };
 });
+//# sourceMappingURL=yaml.js.map

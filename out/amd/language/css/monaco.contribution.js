@@ -134,3 +134,4 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
         getMode().then(function (mode) { return mode.setupMode(exports.cssDefaults); });
     });
 });
+//# sourceMappingURL=monaco.contribution.js.map

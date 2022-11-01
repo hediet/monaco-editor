@@ -130,3 +130,4 @@ define(["require", "exports", "./workerManager", "../common/lspLanguageFeatures"
     Object.defineProperty(exports, "WorkerManager", { enumerable: true, get: function () { return workerManager_2.WorkerManager; } });
     __exportStar(lspLanguageFeatures_1, exports);
 });
+//# sourceMappingURL=htmlMode.js.map

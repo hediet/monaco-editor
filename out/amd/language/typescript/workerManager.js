@@ -144,3 +144,4 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
     }());
     exports.WorkerManager = WorkerManager;
 });
+//# sourceMappingURL=workerManager.js.map

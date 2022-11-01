@@ -187,3 +187,4 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
     }
     exports.registerHTMLLanguageService = registerHTMLLanguageService;
 });
+//# sourceMappingURL=monaco.contribution.js.map

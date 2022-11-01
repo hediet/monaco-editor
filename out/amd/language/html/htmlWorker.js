@@ -211,3 +211,4 @@ define(["require", "exports", "vscode-html-languageservice"], function (require,
     }
     exports.create = create;
 });
+//# sourceMappingURL=htmlWorker.js.map

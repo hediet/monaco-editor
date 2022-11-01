@@ -288,3 +288,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=qsharp.js.map

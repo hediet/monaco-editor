@@ -727,3 +727,4 @@ define(["require", "exports", "vscode-languageserver-types", "../../fillers/mona
     exports.SelectionRangeAdapter = SelectionRangeAdapter;
 });
 //#endregion
+//# sourceMappingURL=lspLanguageFeatures.js.map

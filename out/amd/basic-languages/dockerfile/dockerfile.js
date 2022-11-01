@@ -132,3 +132,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=dockerfile.js.map

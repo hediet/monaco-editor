@@ -245,3 +245,4 @@ define(["require", "exports", "./lib/typescriptServicesMetadata", "../../fillers
         return getMode().then(function (mode) { return mode.setupJavaScript(exports.javascriptDefaults); });
     });
 });
+//# sourceMappingURL=monaco.contribution.js.map

@@ -177,3 +177,4 @@ define(["require", "exports"], function (require, exports) {
         }
     };
 });
+//# sourceMappingURL=cameligo.js.map

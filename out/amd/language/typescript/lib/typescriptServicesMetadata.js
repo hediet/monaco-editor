@@ -7,3 +7,4 @@ define(["require", "exports"], function (require, exports) {
     exports.typescriptVersion = void 0;
     exports.typescriptVersion = "4.5.5";
 });
+//# sourceMappingURL=typescriptServicesMetadata.js.map
