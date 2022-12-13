@@ -4,18 +4,6 @@
  *--------------------------------------------------------------------------------------------*/
 import { Emitter } from '../../../../base/common/event.js';
 export class ColorPickerModel {
-    constructor(color, availableColorPresentations, presentationIndex) {
-        this.presentationIndex = presentationIndex;
-        this._onColorFlushed = new Emitter();
-        this.onColorFlushed = this._onColorFlushed.event;
-        this._onDidChangeColor = new Emitter();
-        this.onDidChangeColor = this._onDidChangeColor.event;
-        this._onDidChangePresentation = new Emitter();
-        this.onDidChangePresentation = this._onDidChangePresentation.event;
-        this.originalColor = color;
-        this._color = color;
-        this._colorPresentations = availableColorPresentations;
-    }
     get color() {
         return this._color;
     }
@@ -36,6 +24,18 @@ export class ColorPickerModel {
             this.presentationIndex = 0;
         }
         this._onDidChangePresentation.fire(this.presentation);
+    }
+    constructor(color, availableColorPresentations, presentationIndex) {
+        this.presentationIndex = presentationIndex;
+        this._onColorFlushed = new Emitter();
+        this.onColorFlushed = this._onColorFlushed.event;
+        this._onDidChangeColor = new Emitter();
+        this.onDidChangeColor = this._onDidChangeColor.event;
+        this._onDidChangePresentation = new Emitter();
+        this.onDidChangePresentation = this._onDidChangePresentation.event;
+        this.originalColor = color;
+        this._color = color;
+        this._colorPresentations = availableColorPresentations;
     }
     selectNextColorPresentation() {
         this.presentationIndex = (this.presentationIndex + 1) % this.colorPresentations.length;

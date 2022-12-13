@@ -6,8 +6,11 @@ import { IntervalTimer, TimeoutTimer } from '../../../base/common/async.js';
 import { Emitter, Event } from '../../../base/common/event.js';
 import { Disposable } from '../../../base/common/lifecycle.js';
 import * as nls from '../../../nls.js';
-const HIGH_FREQ_COMMANDS = /^(cursor|delete)/;
+const HIGH_FREQ_COMMANDS = /^(cursor|delete|undo|redo|tab|editor\.action\.clipboard)/;
 export class AbstractKeybindingService extends Disposable {
+    get onDidUpdateKeybindings() {
+        return this._onDidUpdateKeybindings ? this._onDidUpdateKeybindings.event : Event.None; // Sinon stubbing walks properties on prototype
+    }
     constructor(_contextKeyService, _commandService, _telemetryService, _notificationService, _logService) {
         super();
         this._contextKeyService = _contextKeyService;
@@ -23,9 +26,6 @@ export class AbstractKeybindingService extends Disposable {
         this._currentSingleModifier = null;
         this._currentSingleModifierClearTimeout = new TimeoutTimer();
         this._logging = false;
-    }
-    get onDidUpdateKeybindings() {
-        return this._onDidUpdateKeybindings ? this._onDidUpdateKeybindings.event : Event.None; // Sinon stubbing walks properties on prototype
     }
     dispose() {
         super.dispose();

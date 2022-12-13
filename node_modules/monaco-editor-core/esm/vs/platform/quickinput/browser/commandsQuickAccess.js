@@ -47,10 +47,10 @@ let AbstractCommandsQuickAccessProvider = class AbstractCommandsQuickAccessProvi
         this.commandsHistory = this._register(this.instantiationService.createInstance(CommandsHistory));
         this.options = options;
     }
-    _getPicks(filter, disposables, token) {
+    _getPicks(filter, _disposables, token) {
         return __awaiter(this, void 0, void 0, function* () {
             // Ask subclass for all command picks
-            const allCommandPicks = yield this.getCommandPicks(disposables, token);
+            const allCommandPicks = yield this.getCommandPicks(token);
             if (token.isCancellationRequested) {
                 return [];
             }

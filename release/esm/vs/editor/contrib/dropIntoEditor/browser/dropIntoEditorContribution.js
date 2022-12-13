@@ -28,39 +28,25 @@ import { relativePath } from '../../../../base/common/resources.js';
 import { URI } from '../../../../base/common/uri.js';
 import { addExternalEditorsDropData, toVSDataTransfer, UriList } from '../../../browser/dnd.js';
 import { registerEditorContribution } from '../../../browser/editorExtensions.js';
-import { IBulkEditService, ResourceEdit } from '../../../browser/services/bulkEditService.js';
+import { IBulkEditService, ResourceTextEdit } from '../../../browser/services/bulkEditService.js';
 import { Range } from '../../../common/core/range.js';
-import { Selection } from '../../../common/core/selection.js';
 import { ILanguageFeaturesService } from '../../../common/services/languageFeatures.js';
 import { EditorStateCancellationTokenSource } from '../../editorState/browser/editorState.js';
-import { performSnippetEdit } from '../../snippet/browser/snippetController2.js';
 import { SnippetParser } from '../../snippet/browser/snippetParser.js';
 import { localize } from '../../../../nls.js';
-import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 import { IProgressService } from '../../../../platform/progress/common/progress.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 let DropIntoEditorController = class DropIntoEditorController extends Disposable {
-    constructor(editor, _bulkEditService, _configurationService, _languageFeaturesService, _progressService, workspaceContextService) {
+    constructor(editor, _bulkEditService, _languageFeaturesService, _progressService, workspaceContextService) {
         super();
         this._bulkEditService = _bulkEditService;
-        this._configurationService = _configurationService;
         this._languageFeaturesService = _languageFeaturesService;
         this._progressService = _progressService;
         this._register(editor.onDropIntoEditor(e => this.onDropIntoEditor(editor, e.position, e.event)));
         this._languageFeaturesService.documentOnDropEditProvider.register('*', new DefaultOnDropProvider(workspaceContextService));
-        this._register(this._configurationService.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('workbench.editor.dropIntoEditor.enabled')) {
-                this.updateEditorOptions(editor);
-            }
-        }));
-        this.updateEditorOptions(editor);
-    }
-    updateEditorOptions(editor) {
-        editor.updateOptions({
-            enableDropIntoEditor: this._configurationService.getValue('workbench.editor.dropIntoEditor.enabled')
-        });
     }
     onDropIntoEditor(editor, position, dragEvent) {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             if (!dragEvent.dataTransfer || !editor.hasModel()) {
                 return;
@@ -77,7 +63,7 @@ let DropIntoEditorController = class DropIntoEditorController extends Disposable
             const tokenSource = new EditorStateCancellationTokenSource(editor, 1 /* CodeEditorStateFlag.Value */);
             try {
                 const providers = this._languageFeaturesService.documentOnDropEditProvider.ordered(model);
-                const edit = yield this._progressService.withProgress({
+                const providerEdit = yield this._progressService.withProgress({
                     location: 15 /* ProgressLocation.Notification */,
                     delay: 750,
                     title: localize('dropProgressTitle', "Running drop handlers..."),
@@ -101,12 +87,19 @@ let DropIntoEditorController = class DropIntoEditorController extends Disposable
                 if (tokenSource.token.isCancellationRequested || editor.getModel().getVersionId() !== initialModelVersion) {
                     return;
                 }
-                if (edit) {
-                    const range = new Range(position.lineNumber, position.column, position.lineNumber, position.column);
-                    performSnippetEdit(editor, typeof edit.insertText === 'string' ? SnippetParser.escape(edit.insertText) : edit.insertText.snippet, [Selection.fromRange(range, 0 /* SelectionDirection.LTR */)]);
-                    if (edit.additionalEdit) {
-                        yield this._bulkEditService.apply(ResourceEdit.convert(edit.additionalEdit), { editor });
-                    }
+                if (providerEdit) {
+                    const snippet = typeof providerEdit.insertText === 'string' ? SnippetParser.escape(providerEdit.insertText) : providerEdit.insertText.snippet;
+                    const combinedWorkspaceEdit = {
+                        edits: [
+                            new ResourceTextEdit(model.uri, {
+                                range: new Range(position.lineNumber, position.column, position.lineNumber, position.column),
+                                text: snippet,
+                                insertAsSnippet: true,
+                            }),
+                            ...((_b = (_a = providerEdit.additionalEdit) === null || _a === void 0 ? void 0 : _a.edits) !== null && _b !== void 0 ? _b : [])
+                        ]
+                    };
+                    yield this._bulkEditService.apply(combinedWorkspaceEdit, { editor });
                     return;
                 }
             }
@@ -129,10 +122,9 @@ let DropIntoEditorController = class DropIntoEditorController extends Disposable
 DropIntoEditorController.ID = 'editor.contrib.dropIntoEditorController';
 DropIntoEditorController = __decorate([
     __param(1, IBulkEditService),
-    __param(2, IConfigurationService),
-    __param(3, ILanguageFeaturesService),
-    __param(4, IProgressService),
-    __param(5, IWorkspaceContextService)
+    __param(2, ILanguageFeaturesService),
+    __param(3, IProgressService),
+    __param(4, IWorkspaceContextService)
 ], DropIntoEditorController);
 export { DropIntoEditorController };
 let DefaultOnDropProvider = class DefaultOnDropProvider {

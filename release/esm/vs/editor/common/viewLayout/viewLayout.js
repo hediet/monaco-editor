@@ -102,7 +102,7 @@ export class ViewLayout extends Disposable {
         super();
         this._configuration = configuration;
         const options = this._configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         const padding = options.get(76 /* EditorOption.padding */);
         this._linesLayout = new LinesLayout(lineCount, options.get(60 /* EditorOption.lineHeight */), padding.top, padding.bottom);
         this._scrollable = this._register(new EditorScrollable(0, scheduleAtNextAnimationFrame));
@@ -134,8 +134,8 @@ export class ViewLayout extends Disposable {
             const padding = options.get(76 /* EditorOption.padding */);
             this._linesLayout.setPadding(padding.top, padding.bottom);
         }
-        if (e.hasChanged(132 /* EditorOption.layoutInfo */)) {
-            const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        if (e.hasChanged(133 /* EditorOption.layoutInfo */)) {
+            const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
             const width = layoutInfo.contentWidth;
             const height = layoutInfo.height;
             const scrollDimensions = this._scrollable.getScrollDimensions();
@@ -203,9 +203,9 @@ export class ViewLayout extends Disposable {
     }
     _computeContentWidth(maxLineWidth) {
         const options = this._configuration.options;
-        const wrappingInfo = options.get(133 /* EditorOption.wrappingInfo */);
+        const wrappingInfo = options.get(134 /* EditorOption.wrappingInfo */);
         const fontInfo = options.get(45 /* EditorOption.fontInfo */);
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         if (wrappingInfo.isViewportWrapping) {
             const minimap = options.get(66 /* EditorOption.minimap */);
             if (maxLineWidth > layoutInfo.contentWidth + fontInfo.typicalHalfwidthCharacterWidth) {
@@ -252,6 +252,9 @@ export class ViewLayout extends Disposable {
     }
     getVerticalOffsetForLineNumber(lineNumber, includeViewZones = false) {
         return this._linesLayout.getVerticalOffsetForLineNumber(lineNumber, includeViewZones);
+    }
+    getVerticalOffsetAfterLineNumber(lineNumber, includeViewZones = false) {
+        return this._linesLayout.getVerticalOffsetAfterLineNumber(lineNumber, includeViewZones);
     }
     isAfterLines(verticalOffset) {
         return this._linesLayout.isAfterLines(verticalOffset);

@@ -57,11 +57,6 @@ EditorScopedQuickInputService = __decorate([
 ], EditorScopedQuickInputService);
 export { EditorScopedQuickInputService };
 let StandaloneQuickInputService = class StandaloneQuickInputService {
-    constructor(instantiationService, codeEditorService) {
-        this.instantiationService = instantiationService;
-        this.codeEditorService = codeEditorService;
-        this.mapEditorToService = new Map();
-    }
     get activeService() {
         const editor = this.codeEditorService.getFocusedCodeEditor();
         if (!editor) {
@@ -81,6 +76,11 @@ let StandaloneQuickInputService = class StandaloneQuickInputService {
         return quickInputService;
     }
     get quickAccess() { return this.activeService.quickAccess; }
+    constructor(instantiationService, codeEditorService) {
+        this.instantiationService = instantiationService;
+        this.codeEditorService = codeEditorService;
+        this.mapEditorToService = new Map();
+    }
     pick(picks, options = {}, token = CancellationToken.None) {
         return this.activeService /* TS fail */.pick(picks, options, token);
     }
@@ -94,12 +94,12 @@ StandaloneQuickInputService = __decorate([
 ], StandaloneQuickInputService);
 export { StandaloneQuickInputService };
 export class QuickInputEditorContribution {
+    static get(editor) {
+        return editor.getContribution(QuickInputEditorContribution.ID);
+    }
     constructor(editor) {
         this.editor = editor;
         this.widget = new QuickInputEditorWidget(this.editor);
-    }
-    static get(editor) {
-        return editor.getContribution(QuickInputEditorContribution.ID);
     }
     dispose() {
         this.widget.dispose();

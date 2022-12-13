@@ -88,7 +88,7 @@ export class TextAreaHandler extends ViewPart {
         this._scrollLeft = 0;
         this._scrollTop = 0;
         const options = this._context.configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         this._setAccessibilityOptions(options);
         this._contentLeft = layoutInfo.contentLeft;
         this._contentWidth = layoutInfo.contentWidth;
@@ -111,7 +111,7 @@ export class TextAreaHandler extends ViewPart {
         this.textArea.setAttribute('autocomplete', 'off');
         this.textArea.setAttribute('spellcheck', 'false');
         this.textArea.setAttribute('aria-label', this._getAriaLabel(options));
-        this.textArea.setAttribute('tabindex', String(options.get(113 /* EditorOption.tabIndex */)));
+        this.textArea.setAttribute('tabindex', String(options.get(114 /* EditorOption.tabIndex */)));
         this.textArea.setAttribute('role', 'textbox');
         this.textArea.setAttribute('aria-roledescription', nls.localize('editor', "editor"));
         this.textArea.setAttribute('aria-multiline', 'true');
@@ -131,6 +131,9 @@ export class TextAreaHandler extends ViewPart {
             },
             getValueInRange: (range, eol) => {
                 return this._context.viewModel.getValueInRange(range, eol);
+            },
+            getValueLengthInRange: (range) => {
+                return this._context.viewModel.model.getValueLengthInRange(range);
             }
         };
         const textAreaInputHost = {
@@ -172,6 +175,15 @@ export class TextAreaHandler extends ViewPart {
                         if (textBefore.length > 0) {
                             return new TextAreaState(textBefore, textBefore.length, textBefore.length, position, position);
                         }
+                    }
+                    // on macOS, write current selection into textarea will allow system text services pick selected text,
+                    // but we still want to limit the amount of text given Chromium handles very poorly text even of a few
+                    // thousand chars
+                    // (https://github.com/microsoft/vscode/issues/27799)
+                    const LIMIT_CHARS = 500;
+                    if (platform.isMacintosh && !selection.isEmpty() && simpleModel.getValueLengthInRange(selection) < LIMIT_CHARS) {
+                        const text = simpleModel.getValueInRange(selection, 0 /* EndOfLinePreference.TextDefined */);
+                        return new TextAreaState(text, 0, text.length, selection.getStartPosition(), selection.getEndPosition());
                     }
                     // on Safari, document.execCommand('cut') and document.execCommand('copy') will just not work
                     // if the textarea has no content selected. So if there is an editor selection, ensure something
@@ -367,7 +379,7 @@ export class TextAreaHandler extends ViewPart {
     }
     _getWordBeforePosition(position) {
         const lineContent = this._context.viewModel.getLineContent(position.lineNumber);
-        const wordSeparators = getMapForWordSeparators(this._context.configuration.options.get(118 /* EditorOption.wordSeparators */));
+        const wordSeparators = getMapForWordSeparators(this._context.configuration.options.get(119 /* EditorOption.wordSeparators */));
         let column = position.column;
         let distance = 0;
         while (column > 1) {
@@ -412,7 +424,7 @@ export class TextAreaHandler extends ViewPart {
     // --- begin event handlers
     onConfigurationChanged(e) {
         const options = this._context.configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         this._setAccessibilityOptions(options);
         this._contentLeft = layoutInfo.contentLeft;
         this._contentWidth = layoutInfo.contentWidth;
@@ -422,7 +434,7 @@ export class TextAreaHandler extends ViewPart {
         this._emptySelectionClipboard = options.get(33 /* EditorOption.emptySelectionClipboard */);
         this._copyWithSyntaxHighlighting = options.get(21 /* EditorOption.copyWithSyntaxHighlighting */);
         this.textArea.setAttribute('aria-label', this._getAriaLabel(options));
-        this.textArea.setAttribute('tabindex', String(options.get(113 /* EditorOption.tabIndex */)));
+        this.textArea.setAttribute('tabindex', String(options.get(114 /* EditorOption.tabIndex */)));
         if (e.hasChanged(30 /* EditorOption.domReadOnly */) || e.hasChanged(82 /* EditorOption.readOnly */)) {
             if (options.get(30 /* EditorOption.domReadOnly */) && options.get(82 /* EditorOption.readOnly */)) {
                 this.textArea.setAttribute('readonly', 'true');

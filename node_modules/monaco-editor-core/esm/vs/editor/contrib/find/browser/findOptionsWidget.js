@@ -21,6 +21,7 @@ export class FindOptionsWidget extends Widget {
         this._domNode.className = 'findOptionsWidget';
         this._domNode.style.display = 'none';
         this._domNode.style.top = '10px';
+        this._domNode.style.zIndex = '12';
         this._domNode.setAttribute('role', 'presentation');
         this._domNode.setAttribute('aria-hidden', 'true');
         const inputActiveOptionBorderColor = themeService.getColorTheme().getColor(inputActiveOptionBorder);

@@ -29,7 +29,7 @@ import { assertType } from '../../../../base/common/types.js';
 import { URI } from '../../../../base/common/uri.js';
 import { EditorStateCancellationTokenSource } from '../../editorState/browser/editorState.js';
 import { EditorAction, EditorCommand, registerEditorAction, registerEditorCommand, registerEditorContribution, registerModelAndPositionCommand } from '../../../browser/editorExtensions.js';
-import { IBulkEditService, ResourceEdit } from '../../../browser/services/bulkEditService.js';
+import { IBulkEditService } from '../../../browser/services/bulkEditService.js';
 import { ICodeEditorService } from '../../../browser/services/codeEditorService.js';
 import { Position } from '../../../common/core/position.js';
 import { Range } from '../../../common/core/range.js';
@@ -126,6 +126,9 @@ export function rename(registry, model, position, newName) {
 }
 // ---  register actions and commands
 let RenameController = class RenameController {
+    static get(editor) {
+        return editor.getContribution(RenameController.ID);
+    }
     constructor(editor, _instaService, _notificationService, _bulkEditService, _progressService, _logService, _configService, _languageFeaturesService) {
         this.editor = editor;
         this._instaService = _instaService;
@@ -138,9 +141,6 @@ let RenameController = class RenameController {
         this._disposableStore = new DisposableStore();
         this._cts = new CancellationTokenSource();
         this._renameInputField = this._disposableStore.add(new IdleValue(() => this._disposableStore.add(this._instaService.createInstance(RenameInputField, this.editor, ['acceptRenameInput', 'acceptRenameInputWithPreview']))));
-    }
-    static get(editor) {
-        return editor.getContribution(RenameController.ID);
     }
     dispose() {
         this._disposableStore.dispose();
@@ -210,7 +210,7 @@ let RenameController = class RenameController {
                 }
                 // collapse selection to active end
                 this.editor.setSelection(Range.fromPositions(this.editor.getSelection().getPosition()));
-                this._bulkEditService.apply(ResourceEdit.convert(renameResult), {
+                this._bulkEditService.apply(renameResult, {
                     editor: this.editor,
                     showPreview: inputFieldResult.wantsPreview,
                     label: nls.localize('label', "Renaming '{0}' to '{1}'", loc === null || loc === void 0 ? void 0 : loc.text, inputFieldResult.newName),

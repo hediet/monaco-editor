@@ -32,7 +32,7 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
         ],
         onEnterRules: [
             {
-                beforeText: new RegExp('^\\s*(?:def|class|for|if|elif|else|while|try|with|finally|except|async).*?:\\s*$'),
+                beforeText: new RegExp('^\\s*(?:def|class|for|if|elif|else|while|try|with|finally|except|async|match|case).*?:\\s*$'),
                 action: { indentAction: monaco_editor_core_1.languages.IndentAction.Indent }
             }
         ],
@@ -49,18 +49,21 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
         tokenPostfix: '.python',
         keywords: [
             // This section is the result of running
-            // `for k in keyword.kwlist: print('  "' + k + '",')` in a Python REPL,
+            // `import keyword; for k in sorted(keyword.kwlist + keyword.softkwlist): print("  '" + k + "',")`
+            // in a Python REPL,
             // though note that the output from Python 3 is not a strict superset of the
             // output from Python 2.
             'False',
             'None',
             'True',
+            '_',
             'and',
             'as',
             'assert',
             'async',
             'await',
             'break',
+            'case',
             'class',
             'continue',
             'def',
@@ -78,6 +81,7 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
             'in',
             'is',
             'lambda',
+            'match',
             'nonlocal',
             'not',
             'or',

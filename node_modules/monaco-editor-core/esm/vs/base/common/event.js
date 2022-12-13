@@ -351,27 +351,30 @@ export var Event;
     }
     Event.fromObservable = fromObservable;
 })(Event || (Event = {}));
-class EventProfiling {
+export class EventProfiling {
     constructor(name) {
-        this._listenerCount = 0;
-        this._invocationCount = 0;
-        this._elapsedOverall = 0;
-        this._name = `${name}_${EventProfiling._idPool++}`;
+        this.listenerCount = 0;
+        this.invocationCount = 0;
+        this.elapsedOverall = 0;
+        this.durations = [];
+        this.name = `${name}_${EventProfiling._idPool++}`;
+        EventProfiling.all.add(this);
     }
     start(listenerCount) {
         this._stopWatch = new StopWatch(true);
-        this._listenerCount = listenerCount;
+        this.listenerCount = listenerCount;
     }
     stop() {
         if (this._stopWatch) {
             const elapsed = this._stopWatch.elapsed();
-            this._elapsedOverall += elapsed;
-            this._invocationCount += 1;
-            console.info(`did FIRE ${this._name}: elapsed_ms: ${elapsed.toFixed(5)}, listener: ${this._listenerCount} (elapsed_overall: ${this._elapsedOverall.toFixed(2)}, invocations: ${this._invocationCount})`);
+            this.durations.push(elapsed);
+            this.elapsedOverall += elapsed;
+            this.invocationCount += 1;
             this._stopWatch = undefined;
         }
     }
 }
+EventProfiling.all = new Set();
 EventProfiling._idPool = 0;
 let _globalLeakWarningThreshold = -1;
 class LeakageMonitor {
@@ -422,12 +425,12 @@ class LeakageMonitor {
     }
 }
 class Stacktrace {
-    constructor(value) {
-        this.value = value;
-    }
     static create() {
         var _a;
         return new Stacktrace((_a = new Error().stack) !== null && _a !== void 0 ? _a : '');
+    }
+    constructor(value) {
+        this.value = value;
     }
     print() {
         console.warn(this.value.split('\n').slice(2).join('\n'));
@@ -585,6 +588,12 @@ export class Emitter {
             (_b = this._perfMon) === null || _b === void 0 ? void 0 : _b.stop();
         }
     }
+    hasListeners() {
+        if (!this._listeners) {
+            return false;
+        }
+        return !this._listeners.isEmpty();
+    }
 }
 export class EventDeliveryQueue {
     constructor() {
@@ -649,9 +658,11 @@ export class PauseableEmitter extends Emitter {
             if (this._mergeFn) {
                 // use the merge function to create a single composite
                 // event. make a copy in case firing pauses this emitter
-                const events = Array.from(this._eventQueue);
-                this._eventQueue.clear();
-                super.fire(this._mergeFn(events));
+                if (this._eventQueue.size > 0) {
+                    const events = Array.from(this._eventQueue);
+                    this._eventQueue.clear();
+                    super.fire(this._mergeFn(events));
+                }
             }
             else {
                 // no merging, fire each event individually and test
@@ -688,6 +699,34 @@ export class DebounceEmitter extends PauseableEmitter {
             }, this._delay);
         }
         super.fire(event);
+    }
+}
+/**
+ * An emitter which queue all events and then process them at the
+ * end of the event loop.
+ */
+export class MicrotaskEmitter extends Emitter {
+    constructor(options) {
+        super(options);
+        this._queuedEvents = [];
+        this._mergeFn = options === null || options === void 0 ? void 0 : options.merge;
+    }
+    fire(event) {
+        if (!this.hasListeners()) {
+            return;
+        }
+        this._queuedEvents.push(event);
+        if (this._queuedEvents.length === 1) {
+            queueMicrotask(() => {
+                if (this._mergeFn) {
+                    super.fire(this._mergeFn(this._queuedEvents));
+                }
+                else {
+                    this._queuedEvents.forEach(e => super.fire(e));
+                }
+                this._queuedEvents = [];
+            });
+        }
     }
 }
 /**

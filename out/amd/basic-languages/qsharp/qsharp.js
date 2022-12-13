@@ -74,7 +74,8 @@ define(["require", "exports"], function (require, exports) {
             'borrow',
             'using',
             'borrowing',
-            'mutable'
+            'mutable',
+            'internal'
         ],
         typeKeywords: [
             'Unit',

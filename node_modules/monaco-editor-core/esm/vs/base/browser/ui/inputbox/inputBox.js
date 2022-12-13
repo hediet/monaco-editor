@@ -106,7 +106,7 @@ export class InputBox extends Widget {
         this.oninput(this.input, () => this.onValueChange());
         this.onblur(this.input, () => this.onBlur());
         this.onfocus(this.input, () => this.onFocus());
-        this.ignoreGesture(this.input);
+        this._register(this.ignoreGesture(this.input));
         setTimeout(() => this.updateMirror(), 0);
         // Support actions
         if (this.options.actions) {
@@ -238,7 +238,7 @@ export class InputBox extends Widget {
         this.element.classList.add(this.classForType(message.type));
         const styles = this.stylesForType(this.message.type);
         this.element.style.border = styles.border ? `1px solid ${styles.border}` : '';
-        if (this.hasFocus() || force) {
+        if (this.message.content && (this.hasFocus() || force)) {
             this._showMessage();
         }
     }
@@ -415,11 +415,10 @@ export class InputBox extends Widget {
         }
     }
     dispose() {
+        var _a;
         this._hideMessage();
         this.message = null;
-        if (this.actionbar) {
-            this.actionbar.dispose();
-        }
+        (_a = this.actionbar) === null || _a === void 0 ? void 0 : _a.dispose();
         super.dispose();
     }
 }

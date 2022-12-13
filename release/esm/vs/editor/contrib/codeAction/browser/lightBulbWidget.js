@@ -14,8 +14,9 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 import * as dom from '../../../../base/browser/dom.js';
 import { Gesture } from '../../../../base/browser/touch.js';
 import { Codicon } from '../../../../base/common/codicons.js';
-import { Emitter } from '../../../../base/common/event.js';
+import { Emitter, Event } from '../../../../base/common/event.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
+import { withNullAsUndefined } from '../../../../base/common/types.js';
 import './lightBulbWidget.css';
 import { computeIndentLevel } from '../../../common/model/utils.js';
 import * as nls from '../../../../nls.js';
@@ -37,17 +38,15 @@ var LightBulbState;
     LightBulbState.Showing = Showing;
 })(LightBulbState || (LightBulbState = {}));
 let LightBulbWidget = class LightBulbWidget extends Disposable {
-    constructor(_editor, _quickFixActionId, _preferredFixActionId, _keybindingService) {
+    constructor(_editor, quickFixActionId, preferredFixActionId, keybindingService) {
         super();
         this._editor = _editor;
-        this._quickFixActionId = _quickFixActionId;
-        this._preferredFixActionId = _preferredFixActionId;
-        this._keybindingService = _keybindingService;
         this._onClick = this._register(new Emitter());
         this.onClick = this._onClick.event;
         this._state = LightBulbState.Hidden;
         this._domNode = document.createElement('div');
         this._domNode.className = Codicon.lightBulb.classNames;
+        this._register(Gesture.ignoreTarget(this._domNode));
         this._editor.addContentWidget(this);
         this._register(this._editor.onDidChangeModelContent(_ => {
             // cancel when the line in question has been removed
@@ -56,7 +55,6 @@ let LightBulbWidget = class LightBulbWidget extends Disposable {
                 this.hide();
             }
         }));
-        Gesture.ignoreTarget(this._domNode);
         this._register(dom.addStandardDisposableGenericMouseDownListener(this._domNode, e => {
             if (this.state.type !== 1 /* LightBulbState.Type.Showing */) {
                 return;
@@ -93,8 +91,12 @@ let LightBulbWidget = class LightBulbWidget extends Disposable {
                 this.hide();
             }
         }));
-        this._updateLightBulbTitleAndIcon();
-        this._register(this._keybindingService.onDidUpdateKeybindings(this._updateLightBulbTitleAndIcon, this));
+        this._register(Event.runAndSubscribe(keybindingService.onDidUpdateKeybindings, () => {
+            var _a, _b;
+            this._preferredKbLabel = withNullAsUndefined((_a = keybindingService.lookupKeybinding(preferredFixActionId)) === null || _a === void 0 ? void 0 : _a.getLabel());
+            this._quickFixKbLabel = withNullAsUndefined((_b = keybindingService.lookupKeybinding(quickFixActionId)) === null || _b === void 0 ? void 0 : _b.getLabel());
+            this._updateLightBulbTitleAndIcon();
+        }));
     }
     dispose() {
         super.dispose();
@@ -151,6 +153,9 @@ let LightBulbWidget = class LightBulbWidget extends Disposable {
         this._editor.layoutContentWidget(this);
     }
     hide() {
+        if (this.state === LightBulbState.Hidden) {
+            return;
+        }
         this.state = LightBulbState.Hidden;
         this._editor.layoutContentWidget(this);
     }
@@ -164,18 +169,16 @@ let LightBulbWidget = class LightBulbWidget extends Disposable {
             // update icon
             this._domNode.classList.remove(...Codicon.lightBulb.classNamesArray);
             this._domNode.classList.add(...Codicon.lightbulbAutofix.classNamesArray);
-            const preferredKb = this._keybindingService.lookupKeybinding(this._preferredFixActionId);
-            if (preferredKb) {
-                this.title = nls.localize('preferredcodeActionWithKb', "Show Code Actions. Preferred Quick Fix Available ({0})", preferredKb.getLabel());
+            if (this._preferredKbLabel) {
+                this.title = nls.localize('preferredcodeActionWithKb', "Show Code Actions. Preferred Quick Fix Available ({0})", this._preferredKbLabel);
                 return;
             }
         }
         // update icon
         this._domNode.classList.remove(...Codicon.lightbulbAutofix.classNamesArray);
         this._domNode.classList.add(...Codicon.lightBulb.classNamesArray);
-        const kb = this._keybindingService.lookupKeybinding(this._quickFixActionId);
-        if (kb) {
-            this.title = nls.localize('codeActionWithKb', "Show Code Actions ({0})", kb.getLabel());
+        if (this._quickFixKbLabel) {
+            this.title = nls.localize('codeActionWithKb', "Show Code Actions ({0})", this._quickFixKbLabel);
         }
         else {
             this.title = nls.localize('codeAction', "Show Code Actions");

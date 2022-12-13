@@ -406,7 +406,22 @@ export class RunOnceScheduler {
     }
 }
 /**
- * Execute the callback the next time the browser is idle
+ * Execute the callback the next time the browser is idle, returning an
+ * {@link IDisposable} that will cancel the callback when disposed. This wraps
+ * [requestIdleCallback] so it will fallback to [setTimeout] if the environment
+ * doesn't support it.
+ *
+ * @param callback The callback to run when idle, this includes an
+ * [IdleDeadline] that provides the time alloted for the idle callback by the
+ * browser. Not respecting this deadline will result in a degraded user
+ * experience.
+ * @param timeout A timeout at which point to queue no longer wait for an idle
+ * callback but queue it on the regular event loop (like setTimeout). Typically
+ * this should not be used.
+ *
+ * [IdleDeadline]: https://developer.mozilla.org/en-US/docs/Web/API/IdleDeadline
+ * [requestIdleCallback]: https://developer.mozilla.org/en-US/docs/Web/API/Window/requestIdleCallback
+ * [setTimeout]: https://developer.mozilla.org/en-US/docs/Web/API/Window/setTimeout
  */
 export let runWhenIdle;
 (function () {
@@ -492,6 +507,12 @@ export class IdleValue {
  * Creates a promise whose resolution or rejection can be controlled imperatively.
  */
 export class DeferredPromise {
+    get isRejected() {
+        return this.rejected;
+    }
+    get isSettled() {
+        return this.rejected || this.resolved;
+    }
     constructor() {
         this.rejected = false;
         this.resolved = false;
@@ -499,12 +520,6 @@ export class DeferredPromise {
             this.completeCallback = c;
             this.errorCallback = e;
         });
-    }
-    get isRejected() {
-        return this.rejected;
-    }
-    get isSettled() {
-        return this.rejected || this.resolved;
     }
     complete(value) {
         return new Promise(resolve => {
@@ -575,31 +590,6 @@ export var Promises;
  * A rich implementation for an `AsyncIterable<T>`.
  */
 export class AsyncIterableObject {
-    constructor(executor) {
-        this._state = 0 /* AsyncIterableSourceState.Initial */;
-        this._results = [];
-        this._error = null;
-        this._onStateChanged = new Emitter();
-        queueMicrotask(() => __awaiter(this, void 0, void 0, function* () {
-            const writer = {
-                emitOne: (item) => this.emitOne(item),
-                emitMany: (items) => this.emitMany(items),
-                reject: (error) => this.reject(error)
-            };
-            try {
-                yield Promise.resolve(executor(writer));
-                this.resolve();
-            }
-            catch (err) {
-                this.reject(err);
-            }
-            finally {
-                writer.emitOne = undefined;
-                writer.emitMany = undefined;
-                writer.reject = undefined;
-            }
-        }));
-    }
     static fromArray(items) {
         return new AsyncIterableObject((writer) => {
             writer.emitMany(items);
@@ -633,6 +623,31 @@ export class AsyncIterableObject {
                     finally { if (e_1) throw e_1.error; }
                 }
             }); }));
+        }));
+    }
+    constructor(executor) {
+        this._state = 0 /* AsyncIterableSourceState.Initial */;
+        this._results = [];
+        this._error = null;
+        this._onStateChanged = new Emitter();
+        queueMicrotask(() => __awaiter(this, void 0, void 0, function* () {
+            const writer = {
+                emitOne: (item) => this.emitOne(item),
+                emitMany: (items) => this.emitMany(items),
+                reject: (error) => this.reject(error)
+            };
+            try {
+                yield Promise.resolve(executor(writer));
+                this.resolve();
+            }
+            catch (err) {
+                this.reject(err);
+            }
+            finally {
+                writer.emitOne = undefined;
+                writer.emitMany = undefined;
+                writer.reject = undefined;
+            }
         }));
     }
     [Symbol.asyncIterator]() {

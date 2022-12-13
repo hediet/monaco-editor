@@ -186,6 +186,7 @@ let AbstractGotoSymbolQuickAccessProvider = class AbstractGotoSymbolQuickAccessP
         return disposables;
     }
     doGetSymbolPicks(symbolsPromise, query, options, token) {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
             const symbols = yield symbolsPromise;
             if (token.isCancellationRequested) {
@@ -204,6 +205,14 @@ let AbstractGotoSymbolQuickAccessProvider = class AbstractGotoSymbolQuickAccessP
                 symbolQuery = query;
             }
             // Convert to symbol picks and apply filtering
+            let buttons;
+            const openSideBySideDirection = (_b = (_a = this.options) === null || _a === void 0 ? void 0 : _a.openSideBySideDirection) === null || _b === void 0 ? void 0 : _b.call(_a);
+            if (openSideBySideDirection) {
+                buttons = [{
+                        iconClass: openSideBySideDirection === 'right' ? Codicon.splitHorizontal.classNames : Codicon.splitVertical.classNames,
+                        tooltip: openSideBySideDirection === 'right' ? localize('openToSide', "Open to the Side") : localize('openToBottom', "Open to the Bottom")
+                    }];
+            }
             const filteredSymbolPicks = [];
             for (let index = 0; index < symbols.length; index++) {
                 const symbol = symbols[index];
@@ -272,19 +281,7 @@ let AbstractGotoSymbolQuickAccessProvider = class AbstractGotoSymbolQuickAccessP
                         decoration: symbol.range
                     },
                     strikethrough: deprecated,
-                    buttons: (() => {
-                        var _a, _b;
-                        const openSideBySideDirection = ((_a = this.options) === null || _a === void 0 ? void 0 : _a.openSideBySideDirection) ? (_b = this.options) === null || _b === void 0 ? void 0 : _b.openSideBySideDirection() : undefined;
-                        if (!openSideBySideDirection) {
-                            return undefined;
-                        }
-                        return [
-                            {
-                                iconClass: openSideBySideDirection === 'right' ? Codicon.splitHorizontal.classNames : Codicon.splitVertical.classNames,
-                                tooltip: openSideBySideDirection === 'right' ? localize('openToSide', "Open to the Side") : localize('openToBottom', "Open to the Bottom")
-                            }
-                        ];
-                    })()
+                    buttons
                 });
             }
             // Sort by score

@@ -56,13 +56,13 @@ class SelectionRanges {
     }
 }
 let SmartSelectController = class SmartSelectController {
+    static get(editor) {
+        return editor.getContribution(SmartSelectController.ID);
+    }
     constructor(_editor, _languageFeaturesService) {
         this._editor = _editor;
         this._languageFeaturesService = _languageFeaturesService;
         this._ignoreSelection = false;
-    }
-    static get(editor) {
-        return editor.getContribution(SmartSelectController.ID);
     }
     dispose() {
         var _a;

@@ -33,13 +33,13 @@ import { registerThemingParticipant } from '../../../../platform/theme/common/th
 import { AccessibilityHelpNLS } from '../../../common/standaloneStrings.js';
 const CONTEXT_ACCESSIBILITY_WIDGET_VISIBLE = new RawContextKey('accessibilityHelpWidgetVisible', false);
 let AccessibilityHelpController = class AccessibilityHelpController extends Disposable {
+    static get(editor) {
+        return editor.getContribution(AccessibilityHelpController.ID);
+    }
     constructor(editor, instantiationService) {
         super();
         this._editor = editor;
         this._widget = this._register(instantiationService.createInstance(AccessibilityHelpWidget, this._editor));
-    }
-    static get(editor) {
-        return editor.getContribution(AccessibilityHelpController.ID);
     }
     show() {
         this._widget.show();
@@ -203,7 +203,7 @@ let AccessibilityHelpWidget = class AccessibilityHelpWidget extends Widget {
                 text += ' ' + turnOnMessage;
                 break;
         }
-        if (options.get(131 /* EditorOption.tabFocusMode */)) {
+        if (options.get(132 /* EditorOption.tabFocusMode */)) {
             text += '\n\n - ' + this._descriptionForCommand(ToggleTabFocusModeAction.ID, AccessibilityHelpNLS.tabFocusModeOnMsg, AccessibilityHelpNLS.tabFocusModeOnMsgNoKb);
         }
         else {
@@ -269,9 +269,7 @@ class ShowAccessibilityHelpAction extends EditorAction {
     }
     run(accessor, editor) {
         const controller = AccessibilityHelpController.get(editor);
-        if (controller) {
-            controller.show();
-        }
+        controller === null || controller === void 0 ? void 0 : controller.show();
     }
 }
 registerEditorContribution(AccessibilityHelpController.ID, AccessibilityHelpController);

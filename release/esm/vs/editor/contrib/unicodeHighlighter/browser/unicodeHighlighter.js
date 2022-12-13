@@ -106,13 +106,13 @@ let UnicodeHighlighter = class UnicodeHighlighter extends Disposable {
             this._bannerClosed = false;
             this._updateHighlighter();
         }));
-        this._options = _editor.getOption(114 /* EditorOption.unicodeHighlighting */);
+        this._options = _editor.getOption(115 /* EditorOption.unicodeHighlighting */);
         this._register(_workspaceTrustService.onDidChangeTrust(e => {
             this._updateHighlighter();
         }));
         this._register(_editor.onDidChangeConfiguration(e => {
-            if (e.hasChanged(114 /* EditorOption.unicodeHighlighting */)) {
-                this._options = _editor.getOption(114 /* EditorOption.unicodeHighlighting */);
+            if (e.hasChanged(115 /* EditorOption.unicodeHighlighting */)) {
+                this._options = _editor.getOption(115 /* EditorOption.unicodeHighlighting */);
                 this._updateHighlighter();
             }
         }));
@@ -396,7 +396,7 @@ let UnicodeHighlighterHoverParticipant = class UnicodeHighlighterHoverParticipan
                 .appendMarkdown(reason)
                 .appendText(' ')
                 .appendLink(uri, adjustSettings);
-            result.push(new MarkdownHover(this, d.range, [markdown], index++));
+            result.push(new MarkdownHover(this, d.range, [markdown], false, index++));
         }
         return result;
     }
@@ -476,7 +476,7 @@ export class DisableHighlightingInCommentsAction extends EditorAction {
     }
     runAction(configurationService) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield configurationService.updateValue(unicodeHighlightConfigKeys.includeComments, false, 1 /* ConfigurationTarget.USER */);
+            yield configurationService.updateValue(unicodeHighlightConfigKeys.includeComments, false, 2 /* ConfigurationTarget.USER */);
         });
     }
 }
@@ -500,7 +500,7 @@ export class DisableHighlightingInStringsAction extends EditorAction {
     }
     runAction(configurationService) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield configurationService.updateValue(unicodeHighlightConfigKeys.includeStrings, false, 1 /* ConfigurationTarget.USER */);
+            yield configurationService.updateValue(unicodeHighlightConfigKeys.includeStrings, false, 2 /* ConfigurationTarget.USER */);
         });
     }
 }
@@ -524,7 +524,7 @@ export class DisableHighlightingOfAmbiguousCharactersAction extends EditorAction
     }
     runAction(configurationService) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield configurationService.updateValue(unicodeHighlightConfigKeys.ambiguousCharacters, false, 1 /* ConfigurationTarget.USER */);
+            yield configurationService.updateValue(unicodeHighlightConfigKeys.ambiguousCharacters, false, 2 /* ConfigurationTarget.USER */);
         });
     }
 }
@@ -549,7 +549,7 @@ export class DisableHighlightingOfInvisibleCharactersAction extends EditorAction
     }
     runAction(configurationService) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield configurationService.updateValue(unicodeHighlightConfigKeys.invisibleCharacters, false, 1 /* ConfigurationTarget.USER */);
+            yield configurationService.updateValue(unicodeHighlightConfigKeys.invisibleCharacters, false, 2 /* ConfigurationTarget.USER */);
         });
     }
 }
@@ -574,7 +574,7 @@ export class DisableHighlightingOfNonBasicAsciiCharactersAction extends EditorAc
     }
     runAction(configurationService) {
         return __awaiter(this, void 0, void 0, function* () {
-            yield configurationService.updateValue(unicodeHighlightConfigKeys.nonBasicASCII, false, 1 /* ConfigurationTarget.USER */);
+            yield configurationService.updateValue(unicodeHighlightConfigKeys.nonBasicASCII, false, 2 /* ConfigurationTarget.USER */);
         });
     }
 }
@@ -659,7 +659,7 @@ function excludeCharFromBeingHighlighted(configurationService, charCodes) {
         for (const charCode of charCodes) {
             value[String.fromCodePoint(charCode)] = true;
         }
-        yield configurationService.updateValue(unicodeHighlightConfigKeys.allowedCharacters, value, 1 /* ConfigurationTarget.USER */);
+        yield configurationService.updateValue(unicodeHighlightConfigKeys.allowedCharacters, value, 2 /* ConfigurationTarget.USER */);
     });
 }
 function excludeLocaleFromBeingHighlighted(configurationService, locales) {
@@ -677,7 +677,7 @@ function excludeLocaleFromBeingHighlighted(configurationService, locales) {
         for (const locale of locales) {
             value[locale] = true;
         }
-        yield configurationService.updateValue(unicodeHighlightConfigKeys.allowedLocales, value, 1 /* ConfigurationTarget.USER */);
+        yield configurationService.updateValue(unicodeHighlightConfigKeys.allowedLocales, value, 2 /* ConfigurationTarget.USER */);
     });
 }
 function expectNever(value) {

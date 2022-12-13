@@ -80,38 +80,6 @@ export function addDisposableGenericMouseDownListener(node, handler, useCapture)
 export function addDisposableGenericMouseUpListener(node, handler, useCapture) {
     return addDisposableListener(node, platform.isIOS && BrowserFeatures.pointerEvents ? EventType.POINTER_UP : EventType.MOUSE_UP, handler, useCapture);
 }
-export function createEventEmitter(target, type, options) {
-    let domListener = null;
-    const handler = (e) => result.fire(e);
-    const onFirstListenerAdd = () => {
-        if (!domListener) {
-            domListener = new DomListener(target, type, handler, options);
-        }
-    };
-    const onLastListenerRemove = () => {
-        if (domListener) {
-            domListener.dispose();
-            domListener = null;
-        }
-    };
-    const result = new event.Emitter({ onFirstListenerAdd, onLastListenerRemove });
-    return result;
-}
-let _animationFrame = null;
-function doRequestAnimationFrame(callback) {
-    if (!_animationFrame) {
-        const emulatedRequestAnimationFrame = (callback) => {
-            return setTimeout(() => callback(new Date().getTime()), 0);
-        };
-        _animationFrame = (self.requestAnimationFrame
-            || self.msRequestAnimationFrame
-            || self.webkitRequestAnimationFrame
-            || self.mozRequestAnimationFrame
-            || self.oRequestAnimationFrame
-            || emulatedRequestAnimationFrame);
-    }
-    return _animationFrame.call(self, callback);
-}
 /**
  * Schedule a callback to be run at the next animation frame.
  * This allows multiple parties to register callbacks that should run at the next animation frame.
@@ -185,7 +153,7 @@ class AnimationFrameQueueItem {
         NEXT_QUEUE.push(item);
         if (!animFrameRequested) {
             animFrameRequested = true;
-            doRequestAnimationFrame(animationFrameRunner);
+            requestAnimationFrame(animationFrameRunner);
         }
         return item;
     };
@@ -234,16 +202,7 @@ class SizeUtils {
     }
     static getDimension(element, cssPropertyName, jsPropertyName) {
         const computedStyle = getComputedStyle(element);
-        let value = '0';
-        if (computedStyle) {
-            if (computedStyle.getPropertyValue) {
-                value = computedStyle.getPropertyValue(cssPropertyName);
-            }
-            else {
-                // IE8
-                value = computedStyle.getAttribute(jsPropertyName);
-            }
-        }
+        const value = computedStyle ? computedStyle.getPropertyValue(cssPropertyName) : '0';
         return SizeUtils.convertToPixels(element, value);
     }
     static getBorderLeftWidth(element) {
@@ -359,8 +318,8 @@ export function size(element, width, height) {
 export function getDomNodePagePosition(domNode) {
     const bb = domNode.getBoundingClientRect();
     return {
-        left: bb.left + StandardWindow.scrollX,
-        top: bb.top + StandardWindow.scrollY,
+        left: bb.left + window.scrollX,
+        top: bb.top + window.scrollY,
         width: bb.width,
         height: bb.height
     };
@@ -380,26 +339,6 @@ export function getDomNodeZoomLevel(domNode) {
     } while (testElement !== null && testElement !== document.documentElement);
     return zoom;
 }
-export const StandardWindow = new class {
-    get scrollX() {
-        if (typeof window.scrollX === 'number') {
-            // modern browsers
-            return window.scrollX;
-        }
-        else {
-            return document.body.scrollLeft + document.documentElement.scrollLeft;
-        }
-    }
-    get scrollY() {
-        if (typeof window.scrollY === 'number') {
-            // modern browsers
-            return window.scrollY;
-        }
-        else {
-            return document.body.scrollTop + document.documentElement.scrollTop;
-        }
-    }
-};
 // Adapted from WinJS
 // Gets the width of the element, including margins.
 export function getTotalWidth(element) {
@@ -596,23 +535,12 @@ export const EventType = {
     ANIMATION_ITERATION: browser.isWebKit ? 'webkitAnimationIteration' : 'animationiteration'
 };
 export const EventHelper = {
-    stop: function (e, cancelBubble) {
-        if (e.preventDefault) {
-            e.preventDefault();
-        }
-        else {
-            // IE8
-            e.returnValue = false;
-        }
+    stop: (e, cancelBubble) => {
+        e.preventDefault();
         if (cancelBubble) {
-            if (e.stopPropagation) {
-                e.stopPropagation();
-            }
-            else {
-                // IE8
-                e.cancelBubble = true;
-            }
+            e.stopPropagation();
         }
+        return e;
     }
 };
 export function saveParentsScrollTop(node) {
@@ -632,6 +560,11 @@ export function restoreParentsScrollTop(node, state) {
     }
 }
 class FocusTracker extends Disposable {
+    static hasFocusWithin(element) {
+        const shadowRoot = getShadowRoot(element);
+        const activeElement = (shadowRoot ? shadowRoot.activeElement : document.activeElement);
+        return isAncestor(activeElement, element);
+    }
     constructor(element) {
         super();
         this._onDidFocus = this._register(new event.Emitter());
@@ -674,11 +607,6 @@ class FocusTracker extends Disposable {
         this._register(addDisposableListener(element, EventType.BLUR, onBlur, true));
         this._register(addDisposableListener(element, EventType.FOCUS_IN, () => this._refreshStateHandler()));
         this._register(addDisposableListener(element, EventType.FOCUS_OUT, () => this._refreshStateHandler()));
-    }
-    static hasFocusWithin(element) {
-        const shadowRoot = getShadowRoot(element);
-        const activeElement = (shadowRoot ? shadowRoot.activeElement : document.activeElement);
-        return isAncestor(activeElement, element);
     }
 }
 export function trackFocus(element) {
@@ -765,9 +693,6 @@ export function hide(...elements) {
         element.setAttribute('aria-hidden', 'true');
     }
 }
-export function getElementsByTagName(tag) {
-    return Array.prototype.slice.call(document.getElementsByTagName(tag), 0);
-}
 /**
  * Find a value usable for a dom node size such that the likelihood that it would be
  * displayed with constant screen pixels size is as high as possible.
@@ -853,6 +778,76 @@ export function hookDomPurifyHrefAndSrcSanitizer(allowedProtocols, allowDataImag
         dompurify.removeHook('afterSanitizeAttributes');
     });
 }
+/**
+ * List of safe, non-input html tags.
+ */
+export const basicMarkupHtmlTags = Object.freeze([
+    'a',
+    'abbr',
+    'b',
+    'bdo',
+    'blockquote',
+    'br',
+    'caption',
+    'cite',
+    'code',
+    'col',
+    'colgroup',
+    'dd',
+    'del',
+    'details',
+    'dfn',
+    'div',
+    'dl',
+    'dt',
+    'em',
+    'figcaption',
+    'figure',
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'hr',
+    'i',
+    'img',
+    'ins',
+    'kbd',
+    'label',
+    'li',
+    'mark',
+    'ol',
+    'p',
+    'pre',
+    'q',
+    'rp',
+    'rt',
+    'ruby',
+    'samp',
+    'small',
+    'small',
+    'span',
+    'strike',
+    'strong',
+    'sub',
+    'summary',
+    'sup',
+    'table',
+    'tbody',
+    'td',
+    'tfoot',
+    'th',
+    'thead',
+    'time',
+    'tr',
+    'tt',
+    'u',
+    'ul',
+    'var',
+    'video',
+    'wbr',
+]);
 export class ModifierKeyEmitter extends event.Emitter {
     constructor() {
         super();
@@ -1066,9 +1061,13 @@ export function h(tag, ...args) {
             for (const [cssKey, cssValue] of Object.entries(value)) {
                 el.style.setProperty(camelCaseToHyphenCase(cssKey), typeof cssValue === 'number' ? cssValue + 'px' : '' + cssValue);
             }
-            continue;
         }
-        el.setAttribute(camelCaseToHyphenCase(key), value.toString());
+        else if (key === 'tabIndex') {
+            el.tabIndex = value;
+        }
+        else {
+            el.setAttribute(camelCaseToHyphenCase(key), value.toString());
+        }
     }
     result['root'] = el;
     return result;

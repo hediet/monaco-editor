@@ -43,10 +43,10 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.WorkerManager = void 0;
     var WorkerManager = /** @class */ (function () {
-        function WorkerManager(modeId, defaults) {
+        function WorkerManager(_modeId, _defaults) {
             var _this = this;
-            this._modeId = modeId;
-            this._defaults = defaults;
+            this._modeId = _modeId;
+            this._defaults = _defaults;
             this._worker = null;
             this._client = null;
             this._configChangeListener = this._defaults.onDidChange(function () { return _this._stopWorker(); });
@@ -55,17 +55,17 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
                 return _this._updateExtraLibs();
             });
         }
+        WorkerManager.prototype.dispose = function () {
+            this._configChangeListener.dispose();
+            this._extraLibsChangeListener.dispose();
+            this._stopWorker();
+        };
         WorkerManager.prototype._stopWorker = function () {
             if (this._worker) {
                 this._worker.dispose();
                 this._worker = null;
             }
             this._client = null;
-        };
-        WorkerManager.prototype.dispose = function () {
-            this._configChangeListener.dispose();
-            this._extraLibsChangeListener.dispose();
-            this._stopWorker();
         };
         WorkerManager.prototype._updateExtraLibs = function () {
             return __awaiter(this, void 0, void 0, function () {
@@ -93,52 +93,59 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
         WorkerManager.prototype._getClient = function () {
             var _this = this;
             if (!this._client) {
-                this._worker = monaco_editor_core_1.editor.createWebWorker({
-                    // module that exports the create() method and returns a `TypeScriptWorker` instance
-                    moduleId: 'vs/language/typescript/tsWorker',
-                    label: this._modeId,
-                    keepIdleModels: true,
-                    // passed in to the create() method
-                    createData: {
-                        compilerOptions: this._defaults.getCompilerOptions(),
-                        extraLibs: this._defaults.getExtraLibs(),
-                        customWorkerPath: this._defaults.workerOptions.customWorkerPath,
-                        inlayHintsOptions: this._defaults.inlayHintsOptions
-                    }
-                });
-                var p = this._worker.getProxy();
-                if (this._defaults.getEagerModelSync()) {
-                    p = p.then(function (worker) {
-                        if (_this._worker) {
-                            return _this._worker.withSyncedResources(monaco_editor_core_1.editor
-                                .getModels()
-                                .filter(function (model) { return model.getLanguageId() === _this._modeId; })
-                                .map(function (model) { return model.uri; }));
+                this._client = (function () { return __awaiter(_this, void 0, void 0, function () {
+                    var _this = this;
+                    return __generator(this, function (_a) {
+                        switch (_a.label) {
+                            case 0:
+                                this._worker = monaco_editor_core_1.editor.createWebWorker({
+                                    // module that exports the create() method and returns a `TypeScriptWorker` instance
+                                    moduleId: 'vs/language/typescript/tsWorker',
+                                    label: this._modeId,
+                                    keepIdleModels: true,
+                                    // passed in to the create() method
+                                    createData: {
+                                        compilerOptions: this._defaults.getCompilerOptions(),
+                                        extraLibs: this._defaults.getExtraLibs(),
+                                        customWorkerPath: this._defaults.workerOptions.customWorkerPath,
+                                        inlayHintsOptions: this._defaults.inlayHintsOptions
+                                    }
+                                });
+                                if (!this._defaults.getEagerModelSync()) return [3 /*break*/, 2];
+                                return [4 /*yield*/, this._worker.withSyncedResources(monaco_editor_core_1.editor
+                                        .getModels()
+                                        .filter(function (model) { return model.getLanguageId() === _this._modeId; })
+                                        .map(function (model) { return model.uri; }))];
+                            case 1: return [2 /*return*/, _a.sent()];
+                            case 2: return [4 /*yield*/, this._worker.getProxy()];
+                            case 3: return [2 /*return*/, _a.sent()];
                         }
-                        return worker;
                     });
-                }
-                this._client = p;
+                }); })();
             }
             return this._client;
         };
         WorkerManager.prototype.getLanguageServiceWorker = function () {
-            var _this = this;
             var resources = [];
             for (var _i = 0; _i < arguments.length; _i++) {
                 resources[_i] = arguments[_i];
             }
-            var _client;
-            return this._getClient()
-                .then(function (client) {
-                _client = client;
-            })
-                .then(function (_) {
-                if (_this._worker) {
-                    return _this._worker.withSyncedResources(resources);
-                }
-            })
-                .then(function (_) { return _client; });
+            return __awaiter(this, void 0, void 0, function () {
+                var client;
+                return __generator(this, function (_a) {
+                    switch (_a.label) {
+                        case 0: return [4 /*yield*/, this._getClient()];
+                        case 1:
+                            client = _a.sent();
+                            if (!this._worker) return [3 /*break*/, 3];
+                            return [4 /*yield*/, this._worker.withSyncedResources(resources)];
+                        case 2:
+                            _a.sent();
+                            _a.label = 3;
+                        case 3: return [2 /*return*/, client];
+                    }
+                });
+            });
         };
         return WorkerManager;
     }());

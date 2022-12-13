@@ -108,6 +108,9 @@ export class MouseWheelClassifier {
 }
 MouseWheelClassifier.INSTANCE = new MouseWheelClassifier();
 export class AbstractScrollableElement extends Widget {
+    get options() {
+        return this._options;
+    }
     constructor(element, options, scrollable) {
         super();
         this._onScroll = this._register(new Emitter());
@@ -162,9 +165,6 @@ export class AbstractScrollableElement extends Widget {
         this._mouseIsOver = false;
         this._shouldRender = true;
         this._revealOnScroll = true;
-    }
-    get options() {
-        return this._options;
     }
     dispose() {
         this._mouseWheelToDispose = dispose(this._mouseWheelToDispose);

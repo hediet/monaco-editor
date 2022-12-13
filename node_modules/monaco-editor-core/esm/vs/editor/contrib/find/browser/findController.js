@@ -62,6 +62,12 @@ export function getSelectionSearchString(editor, seedSearchStringFromSelection =
     return null;
 }
 let CommonFindController = class CommonFindController extends Disposable {
+    get editor() {
+        return this._editor;
+    }
+    static get(editor) {
+        return editor.getContribution(CommonFindController.ID);
+    }
     constructor(editor, contextKeyService, storageService, clipboardService) {
         super();
         this._editor = editor;
@@ -97,12 +103,6 @@ let CommonFindController = class CommonFindController extends Disposable {
                 });
             }
         }));
-    }
-    get editor() {
-        return this._editor;
-    }
-    static get(editor) {
-        return editor.getContribution(CommonFindController.ID);
     }
     dispose() {
         this.disposeModel();

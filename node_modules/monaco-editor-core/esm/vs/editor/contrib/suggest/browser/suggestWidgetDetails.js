@@ -64,8 +64,8 @@ let SuggestDetailsWidget = class SuggestDetailsWidget {
         const options = this._editor.getOptions();
         const fontInfo = options.get(45 /* EditorOption.fontInfo */);
         const fontFamily = fontInfo.getMassagedFontFamily();
-        const fontSize = options.get(108 /* EditorOption.suggestFontSize */) || fontInfo.fontSize;
-        const lineHeight = options.get(109 /* EditorOption.suggestLineHeight */) || fontInfo.lineHeight;
+        const fontSize = options.get(109 /* EditorOption.suggestFontSize */) || fontInfo.fontSize;
+        const lineHeight = options.get(110 /* EditorOption.suggestLineHeight */) || fontInfo.lineHeight;
         const fontWeight = fontInfo.fontWeight;
         const fontSizePx = `${fontSize}px`;
         const lineHeightPx = `${lineHeight}px`;
@@ -78,7 +78,7 @@ let SuggestDetailsWidget = class SuggestDetailsWidget {
         this._close.style.width = lineHeightPx;
     }
     getLayoutInfo() {
-        const lineHeight = this._editor.getOption(109 /* EditorOption.suggestLineHeight */) || this._editor.getOption(45 /* EditorOption.fontInfo */).lineHeight;
+        const lineHeight = this._editor.getOption(110 /* EditorOption.suggestLineHeight */) || this._editor.getOption(45 /* EditorOption.fontInfo */).lineHeight;
         const borderWidth = this._borderWidth;
         const borderHeight = borderWidth * 2;
         return {

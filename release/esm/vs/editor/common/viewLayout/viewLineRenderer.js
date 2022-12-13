@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import * as strings from '../../../base/common/strings.js';
-import { createStringBuilder } from '../core/stringBuilder.js';
+import { StringBuilder } from '../core/stringBuilder.js';
 import { LineDecoration, LineDecorationsNormalizer } from './lineDecorations.js';
 import { LinePart } from './linePart.js';
 export class LineRange {
@@ -103,16 +103,16 @@ export class DomPosition {
  * Provides a both direction mapping between a line's character and its rendered position.
  */
 export class CharacterMapping {
-    constructor(length, partCount) {
-        this.length = length;
-        this._data = new Uint32Array(this.length);
-        this._horizontalOffset = new Uint32Array(this.length);
-    }
     static getPartIndex(partData) {
         return (partData & 4294901760 /* CharacterMappingConstants.PART_INDEX_MASK */) >>> 16 /* CharacterMappingConstants.PART_INDEX_OFFSET */;
     }
     static getCharIndex(partData) {
         return (partData & 65535 /* CharacterMappingConstants.CHAR_INDEX_MASK */) >>> 0 /* CharacterMappingConstants.CHAR_INDEX_OFFSET */;
+    }
+    constructor(length, partCount) {
+        this.length = length;
+        this._data = new Uint32Array(this.length);
+        this._horizontalOffset = new Uint32Array(this.length);
     }
     setColumnInfo(column, partIndex, charIndex, horizontalOffset) {
         const partData = ((partIndex << 16 /* CharacterMappingConstants.PART_INDEX_OFFSET */)
@@ -251,7 +251,7 @@ export class RenderLineOutput2 {
     }
 }
 export function renderViewLine2(input) {
-    const sb = createStringBuilder(10000);
+    const sb = new StringBuilder(10000);
     const out = renderViewLine(input, sb);
     return new RenderLineOutput2(out.characterMapping, sb.build(), out.containsRTL, out.containsForeignElements);
 }

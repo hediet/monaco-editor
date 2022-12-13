@@ -14,6 +14,7 @@ const defaultOptions = {
     buttonForeground: Color.white
 };
 export class Button extends Disposable {
+    get onDidClick() { return this._onDidClick.event; }
     constructor(container, options) {
         super();
         this._onDidClick = this._register(new Emitter());
@@ -74,7 +75,6 @@ export class Button extends Disposable {
         } }));
         this.applyStyles();
     }
-    get onDidClick() { return this._onDidClick.event; }
     setHoverBackground() {
         let hoverBackground;
         if (this.options.secondary) {
@@ -122,7 +122,24 @@ export class Button extends Disposable {
     set label(value) {
         this._element.classList.add('monaco-text-button');
         if (this.options.supportIcons) {
-            reset(this._element, ...renderLabelWithIcons(value));
+            const content = [];
+            for (let segment of renderLabelWithIcons(value)) {
+                if (typeof (segment) === 'string') {
+                    segment = segment.trim();
+                    // Ignore empty segment
+                    if (segment === '') {
+                        continue;
+                    }
+                    // Convert string segments to <span> nodes
+                    const node = document.createElement('span');
+                    node.textContent = segment;
+                    content.push(node);
+                }
+                else {
+                    content.push(segment);
+                }
+            }
+            reset(this._element, ...content);
         }
         else {
             this._element.textContent = value;

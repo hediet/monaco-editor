@@ -4,6 +4,9 @@
  *--------------------------------------------------------------------------------------------*/
 import { Emitter } from '../common/event.js';
 export class DomEmitter {
+    get event() {
+        return this.emitter.event;
+    }
     constructor(element, type, useCapture) {
         const fn = (e) => this.emitter.fire(e);
         this.emitter = new Emitter({
@@ -11,15 +14,7 @@ export class DomEmitter {
             onLastListenerRemove: () => element.removeEventListener(type, fn, useCapture)
         });
     }
-    get event() {
-        return this.emitter.event;
-    }
     dispose() {
         this.emitter.dispose();
     }
-}
-export function stopEvent(event) {
-    event.preventDefault();
-    event.stopPropagation();
-    return event;
 }

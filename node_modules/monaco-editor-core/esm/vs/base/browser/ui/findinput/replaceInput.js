@@ -230,9 +230,8 @@ export class ReplaceInput extends Widget {
         this.preserveCase.focus();
     }
     validate() {
-        if (this.inputBox) {
-            this.inputBox.validate();
-        }
+        var _a;
+        (_a = this.inputBox) === null || _a === void 0 ? void 0 : _a.validate();
     }
     set width(newWidth) {
         this.inputBox.paddingRight = this.cachedOptionsWidth;

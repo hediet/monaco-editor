@@ -3,7 +3,7 @@ import { Disposable } from '../../../base/common/lifecycle.js';
 import { isUndefinedOrNull } from '../../../base/common/types.js';
 import { InMemoryStorageDatabase, Storage } from '../../../base/parts/storage/common/storage.js';
 import { createDecorator } from '../../instantiation/common/instantiation.js';
-const TARGET_KEY = '__$__targetStorageMarker';
+export const TARGET_KEY = '__$__targetStorageMarker';
 export const IStorageService = createDecorator('storageService');
 export var WillSaveStateReason;
 (function (WillSaveStateReason) {
@@ -16,6 +16,18 @@ export var WillSaveStateReason;
      */
     WillSaveStateReason[WillSaveStateReason["SHUTDOWN"] = 1] = "SHUTDOWN";
 })(WillSaveStateReason || (WillSaveStateReason = {}));
+export function loadKeyTargets(storage) {
+    const keysRaw = storage.get(TARGET_KEY);
+    if (keysRaw) {
+        try {
+            return JSON.parse(keysRaw);
+        }
+        catch (error) {
+            // Fail gracefully
+        }
+    }
+    return Object.create(null);
+}
 export class AbstractStorageService extends Disposable {
     constructor(options = { flushInterval: AbstractStorageService.DEFAULT_FLUSH_INTERVAL }) {
         super();
@@ -149,16 +161,8 @@ export class AbstractStorageService extends Disposable {
         }
     }
     loadKeyTargets(scope) {
-        const keysRaw = this.get(TARGET_KEY, scope);
-        if (keysRaw) {
-            try {
-                return JSON.parse(keysRaw);
-            }
-            catch (error) {
-                // Fail gracefully
-            }
-        }
-        return Object.create(null);
+        const storage = this.getStorage(scope);
+        return storage ? loadKeyTargets(storage) : Object.create(null);
     }
 }
 AbstractStorageService.DEFAULT_FLUSH_INTERVAL = 60 * 1000; // every minute

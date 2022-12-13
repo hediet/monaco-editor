@@ -20,8 +20,8 @@ import { basename } from '../../../../base/common/resources.js';
 import { Range } from '../../../common/core/range.js';
 import { IMarkerDecorationsService } from '../../../common/services/markerDecorations.js';
 import { getCodeActions } from '../../codeAction/browser/codeAction.js';
-import { QuickFixAction, QuickFixController } from '../../codeAction/browser/codeActionCommands.js';
-import { CodeActionKind, CodeActionTriggerSource } from '../../codeAction/browser/types.js';
+import { QuickFixAction, CodeActionController } from '../../codeAction/browser/codeActionCommands.js';
+import { CodeActionKind, CodeActionTriggerSource } from '../../codeAction/common/types.js';
 import { MarkerController, NextMarkerAction } from '../../gotoError/browser/gotoError.js';
 import * as nls from '../../../../nls.js';
 import { IMarkerData, MarkerSeverity } from '../../../../platform/markers/common/markers.js';
@@ -199,7 +199,7 @@ let MarkerHoverParticipant = class MarkerHoverParticipant {
                     commandId: QuickFixAction.Id,
                     run: (target) => {
                         showing = true;
-                        const controller = QuickFixController.get(this._editor);
+                        const controller = CodeActionController.get(this._editor);
                         const elementPosition = dom.getDomNodePagePosition(target);
                         // Hide the hover pre-emptively, otherwise the editor can close the code actions
                         // context menu as well when using keyboard navigation

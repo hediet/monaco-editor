@@ -18,6 +18,20 @@ import { Disposable } from '../../../base/common/lifecycle.js';
 import { Range } from '../../common/core/range.js';
 import { Codicon } from '../../../base/common/codicons.js';
 export class InlineDiffMargin extends Disposable {
+    get visibility() {
+        return this._visibility;
+    }
+    set visibility(_visibility) {
+        if (this._visibility !== _visibility) {
+            this._visibility = _visibility;
+            if (_visibility) {
+                this._diffActions.style.visibility = 'visible';
+            }
+            else {
+                this._diffActions.style.visibility = 'hidden';
+            }
+        }
+    }
     constructor(_viewZoneId, _marginDomNode, editor, diff, _contextMenuService, _clipboardService) {
         super();
         this._viewZoneId = _viewZoneId;
@@ -151,20 +165,6 @@ export class InlineDiffMargin extends Disposable {
                 }
             }
         }));
-    }
-    get visibility() {
-        return this._visibility;
-    }
-    set visibility(_visibility) {
-        if (this._visibility !== _visibility) {
-            this._visibility = _visibility;
-            if (_visibility) {
-                this._diffActions.style.visibility = 'visible';
-            }
-            else {
-                this._diffActions.style.visibility = 'hidden';
-            }
-        }
     }
     _updateLightBulbPosition(marginDomNode, y, lineHeight) {
         const { top } = dom.getDomNodePagePosition(marginDomNode);

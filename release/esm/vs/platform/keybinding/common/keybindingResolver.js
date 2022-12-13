@@ -40,7 +40,9 @@ export class KeybindingResolver {
         if (keypressChordPart && defaultKb.keypressParts[1] !== keypressChordPart) {
             return false;
         }
-        if (when) {
+        // `true` means always, as does `undefined`
+        // so we will treat `true` === `undefined`
+        if (when && when.type !== 1 /* ContextKeyExprType.True */) {
             if (!defaultKb.when) {
                 return false;
             }

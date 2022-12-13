@@ -73,6 +73,12 @@ export class DelegatingModel extends Disposable {
  * A ghost text model that is both driven by inline completions and the suggest widget.
 */
 let GhostTextModel = class GhostTextModel extends DelegatingModel {
+    get activeInlineCompletionsModel() {
+        if (this.targetModel === this.inlineCompletionsModel) {
+            return this.inlineCompletionsModel;
+        }
+        return undefined;
+    }
     constructor(editor, instantiationService) {
         super();
         this.editor = editor;
@@ -84,12 +90,6 @@ let GhostTextModel = class GhostTextModel extends DelegatingModel {
             this.updateModel();
         }));
         this.updateModel();
-    }
-    get activeInlineCompletionsModel() {
-        if (this.targetModel === this.inlineCompletionsModel) {
-            return this.inlineCompletionsModel;
-        }
-        return undefined;
     }
     updateModel() {
         this.setTargetModel(this.suggestWidgetAdapterModel.isActive

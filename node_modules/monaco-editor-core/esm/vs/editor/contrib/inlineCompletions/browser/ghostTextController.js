@@ -32,6 +32,13 @@ import * as nls from '../../../../nls.js';
 import { ContextKeyExpr, IContextKeyService, RawContextKey } from '../../../../platform/contextkey/common/contextkey.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 let GhostTextController = class GhostTextController extends Disposable {
+    static get(editor) {
+        return editor.getContribution(GhostTextController.ID);
+    }
+    get activeModel() {
+        var _a;
+        return (_a = this.activeController.value) === null || _a === void 0 ? void 0 : _a.model;
+    }
     constructor(editor, instantiationService) {
         super();
         this.editor = editor;
@@ -43,7 +50,7 @@ let GhostTextController = class GhostTextController extends Disposable {
             this.updateModelController();
         }));
         this._register(this.editor.onDidChangeConfiguration((e) => {
-            if (e.hasChanged(107 /* EditorOption.suggest */)) {
+            if (e.hasChanged(108 /* EditorOption.suggest */)) {
                 this.updateModelController();
             }
             if (e.hasChanged(56 /* EditorOption.inlineSuggest */)) {
@@ -52,16 +59,9 @@ let GhostTextController = class GhostTextController extends Disposable {
         }));
         this.updateModelController();
     }
-    static get(editor) {
-        return editor.getContribution(GhostTextController.ID);
-    }
-    get activeModel() {
-        var _a;
-        return (_a = this.activeController.value) === null || _a === void 0 ? void 0 : _a.model;
-    }
     // Don't call this method when not necessary. It will recreate the activeController.
     updateModelController() {
-        const suggestOptions = this.editor.getOption(107 /* EditorOption.suggest */);
+        const suggestOptions = this.editor.getOption(108 /* EditorOption.suggest */);
         const inlineSuggestOptions = this.editor.getOption(56 /* EditorOption.inlineSuggest */);
         this.activeController.value = undefined;
         // ActiveGhostTextController is only created if one of those settings is set or if the inline completions are triggered explicitly.
@@ -241,9 +241,7 @@ export class TriggerInlineSuggestionAction extends EditorAction {
     run(accessor, editor) {
         return __awaiter(this, void 0, void 0, function* () {
             const controller = GhostTextController.get(editor);
-            if (controller) {
-                controller.trigger();
-            }
+            controller === null || controller === void 0 ? void 0 : controller.trigger();
         });
     }
 }

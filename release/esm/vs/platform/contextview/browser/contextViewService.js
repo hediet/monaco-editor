@@ -30,7 +30,7 @@ let ContextViewService = class ContextViewService extends Disposable {
     }
     showContextView(delegate, container, shadowRoot) {
         if (container) {
-            if (container !== this.container) {
+            if (container !== this.container || this.shadowRoot !== shadowRoot) {
                 this.container = container;
                 this.setContainer(container, shadowRoot ? 3 /* ContextViewDOMPosition.FIXED_SHADOW */ : 2 /* ContextViewDOMPosition.FIXED */);
             }
@@ -41,6 +41,7 @@ let ContextViewService = class ContextViewService extends Disposable {
                 this.setContainer(this.container, 1 /* ContextViewDOMPosition.ABSOLUTE */);
             }
         }
+        this.shadowRoot = shadowRoot;
         this.contextView.show(delegate);
         const disposable = toDisposable(() => {
             if (this.currentViewDisposable === disposable) {

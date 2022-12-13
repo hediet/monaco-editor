@@ -46,6 +46,9 @@ import { StopWatch } from '../../../../base/common/stopwatch.js';
 export const CONTEXT_ONTYPE_RENAME_INPUT_VISIBLE = new RawContextKey('LinkedEditingInputVisible', false);
 const DECORATION_CLASS_NAME = 'linked-editing-decoration';
 let LinkedEditingContribution = class LinkedEditingContribution extends Disposable {
+    static get(editor) {
+        return editor.getContribution(LinkedEditingContribution.ID);
+    }
     constructor(editor, contextKeyService, languageFeaturesService, languageConfigurationService, languageFeatureDebounceService) {
         super();
         this.languageConfigurationService = languageConfigurationService;
@@ -75,9 +78,6 @@ let LinkedEditingContribution = class LinkedEditingContribution extends Disposab
         this._register(this._providers.onDidChange(() => this.reinitialize(false)));
         this._register(this._editor.onDidChangeModelLanguage(() => this.reinitialize(true)));
         this.reinitialize(true);
-    }
-    static get(editor) {
-        return editor.getContribution(LinkedEditingContribution.ID);
     }
     reinitialize(forceRefresh) {
         const model = this._editor.getModel();

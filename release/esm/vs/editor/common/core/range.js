@@ -267,6 +267,12 @@ export class Range {
         return Range.collapseToStart(this);
     }
     /**
+     * Moves the range by the given amount of lines.
+     */
+    delta(lineCount) {
+        return new Range(this.startLineNumber + lineCount, this.startColumn, this.endLineNumber + lineCount, this.endColumn);
+    }
+    /**
      * Create a new empty range using this range's start position.
      */
     static collapseToStart(range) {

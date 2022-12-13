@@ -301,7 +301,7 @@ class BaseMenuActionViewItem extends BaseActionViewItem {
         this.cssClass = '';
         // Set mnemonic
         if (this.options.label && options.enableMnemonics) {
-            const label = this.getAction().label;
+            const label = this.action.label;
             if (label) {
                 const matches = MENU_MNEMONIC_REGEX.exec(label);
                 if (matches) {
@@ -386,10 +386,9 @@ class BaseMenuActionViewItem extends BaseActionViewItem {
         this.applyStyle();
     }
     focus() {
+        var _a;
         super.focus();
-        if (this.item) {
-            this.item.focus();
-        }
+        (_a = this.item) === null || _a === void 0 ? void 0 : _a.focus();
         this.applyStyle();
     }
     updatePositionInSet(pos, setSize) {
@@ -405,7 +404,7 @@ class BaseMenuActionViewItem extends BaseActionViewItem {
         }
         if (this.options.label) {
             clearNode(this.label);
-            let label = stripIcons(this.getAction().label);
+            let label = stripIcons(this.action.label);
             if (label) {
                 const cleanLabel = cleanMnemonic(label);
                 if (!this.options.enableMnemonics) {
@@ -445,7 +444,7 @@ class BaseMenuActionViewItem extends BaseActionViewItem {
             this.item.classList.remove(...this.cssClass.split(' '));
         }
         if (this.options.icon && this.label) {
-            this.cssClass = this.getAction().class || '';
+            this.cssClass = this.action.class || '';
             this.label.classList.add('icon');
             if (this.cssClass) {
                 this.label.classList.add(...this.cssClass.split(' '));
@@ -457,7 +456,7 @@ class BaseMenuActionViewItem extends BaseActionViewItem {
         }
     }
     updateEnabled() {
-        if (this.getAction().enabled) {
+        if (this.action.enabled) {
             if (this.element) {
                 this.element.classList.remove('disabled');
                 this.element.removeAttribute('aria-disabled');
@@ -483,7 +482,7 @@ class BaseMenuActionViewItem extends BaseActionViewItem {
         if (!this.item) {
             return;
         }
-        const checked = this.getAction().checked;
+        const checked = this.action.checked;
         this.item.classList.toggle('checked', !!checked);
         if (checked !== undefined) {
             this.item.setAttribute('role', 'menuitemcheckbox');

@@ -12,12 +12,12 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 import { RunOnceScheduler } from '../../../base/common/async.js';
-import { Emitter } from '../../../base/common/event.js';
+import { DebounceEmitter, Emitter } from '../../../base/common/event.js';
 import { DisposableStore } from '../../../base/common/lifecycle.js';
-import { IMenuService, isIMenuItem, isISubmenuItem, MenuItemAction, MenuItemActionManageActions, MenuRegistry, SubmenuItemAction } from './actions.js';
+import { isIMenuItem, isISubmenuItem, MenuItemAction, MenuRegistry, SubmenuItemAction } from './actions.js';
 import { ICommandService } from '../../commands/common/commands.js';
 import { IContextKeyService } from '../../contextkey/common/contextkey.js';
-import { SubmenuAction } from '../../../base/common/actions.js';
+import { Separator, toAction } from '../../../base/common/actions.js';
 import { IStorageService } from '../../storage/common/storage.js';
 import { removeFastWithoutKeepingOrder } from '../../../base/common/arrays.js';
 import { localize } from '../../../nls.js';
@@ -27,7 +27,7 @@ let MenuService = class MenuService {
         this._hiddenStates = new PersistedMenuHideState(storageService);
     }
     createMenu(id, contextKeyService, options) {
-        return new Menu(id, this._hiddenStates, Object.assign({ emitEventsForSubmenuChanges: false, eventDebounceDelay: 50 }, options), this._commandService, contextKeyService, this);
+        return new MenuImpl(id, this._hiddenStates, Object.assign({ emitEventsForSubmenuChanges: false, eventDebounceDelay: 50 }, options), this._commandService, contextKeyService);
     }
 };
 MenuService = __decorate([
@@ -116,65 +116,37 @@ PersistedMenuHideState._key = 'menu.hiddenCommands';
 PersistedMenuHideState = __decorate([
     __param(0, IStorageService)
 ], PersistedMenuHideState);
-let Menu = class Menu {
-    constructor(_id, _hiddenStates, _options, _commandService, _contextKeyService, _menuService) {
+let MenuInfo = class MenuInfo {
+    constructor(_id, _hiddenStates, _collectContextKeysForSubmenus, _commandService, _contextKeyService) {
         this._id = _id;
         this._hiddenStates = _hiddenStates;
-        this._options = _options;
+        this._collectContextKeysForSubmenus = _collectContextKeysForSubmenus;
         this._commandService = _commandService;
         this._contextKeyService = _contextKeyService;
-        this._menuService = _menuService;
-        this._disposables = new DisposableStore();
         this._menuGroups = [];
-        this._contextKeys = new Set();
-        this._build();
-        // Rebuild this menu whenever the menu registry reports an event for this MenuId.
-        // This usually happen while code and extensions are loaded and affects the over
-        // structure of the menu
-        const rebuildMenuSoon = new RunOnceScheduler(() => {
-            this._build();
-            this._onDidChange.fire(this);
-        }, _options.eventDebounceDelay);
-        this._disposables.add(rebuildMenuSoon);
-        this._disposables.add(MenuRegistry.onDidChangeMenu(e => {
-            if (e.has(_id)) {
-                rebuildMenuSoon.schedule();
-            }
-        }));
-        // When context keys or storage state changes we need to check if the menu also has changed. However,
-        // we only do that when someone listens on this menu because (1) these events are
-        // firing often and (2) menu are often leaked
-        const lazyListener = this._disposables.add(new DisposableStore());
-        const startLazyListener = () => {
-            const fireChangeSoon = new RunOnceScheduler(() => this._onDidChange.fire(this), _options.eventDebounceDelay);
-            lazyListener.add(fireChangeSoon);
-            lazyListener.add(_contextKeyService.onDidChangeContext(e => {
-                if (e.affectsSome(this._contextKeys)) {
-                    fireChangeSoon.schedule();
-                }
-            }));
-            lazyListener.add(_hiddenStates.onDidChange(() => {
-                fireChangeSoon.schedule();
-            }));
-        };
-        this._onDidChange = new Emitter({
-            // start/stop context key listener
-            onFirstListenerAdd: startLazyListener,
-            onLastListenerRemove: lazyListener.clear.bind(lazyListener)
-        });
-        this.onDidChange = this._onDidChange.event;
+        this._structureContextKeys = new Set();
+        this._preconditionContextKeys = new Set();
+        this._toggledContextKeys = new Set();
+        this.refresh();
     }
-    dispose() {
-        this._disposables.dispose();
-        this._onDidChange.dispose();
+    get structureContextKeys() {
+        return this._structureContextKeys;
     }
-    _build() {
+    get preconditionContextKeys() {
+        return this._preconditionContextKeys;
+    }
+    get toggledContextKeys() {
+        return this._toggledContextKeys;
+    }
+    refresh() {
         // reset
         this._menuGroups.length = 0;
-        this._contextKeys.clear();
+        this._structureContextKeys.clear();
+        this._preconditionContextKeys.clear();
+        this._toggledContextKeys.clear();
         const menuItems = MenuRegistry.getMenuItems(this._id);
         let group;
-        menuItems.sort(Menu._compareMenuItems);
+        menuItems.sort(MenuInfo._compareMenuItems);
         for (const item of menuItems) {
             // group by groupId
             const groupName = item.group || '';
@@ -188,75 +160,50 @@ let Menu = class Menu {
         }
     }
     _collectContextKeys(item) {
-        Menu._fillInKbExprKeys(item.when, this._contextKeys);
+        MenuInfo._fillInKbExprKeys(item.when, this._structureContextKeys);
         if (isIMenuItem(item)) {
             // keep precondition keys for event if applicable
             if (item.command.precondition) {
-                Menu._fillInKbExprKeys(item.command.precondition, this._contextKeys);
+                MenuInfo._fillInKbExprKeys(item.command.precondition, this._preconditionContextKeys);
             }
             // keep toggled keys for event if applicable
             if (item.command.toggled) {
                 const toggledExpression = item.command.toggled.condition || item.command.toggled;
-                Menu._fillInKbExprKeys(toggledExpression, this._contextKeys);
+                MenuInfo._fillInKbExprKeys(toggledExpression, this._toggledContextKeys);
             }
         }
-        else if (this._options.emitEventsForSubmenuChanges) {
+        else if (this._collectContextKeysForSubmenus) {
             // recursively collect context keys from submenus so that this
             // menu fires events when context key changes affect submenus
             MenuRegistry.getMenuItems(item.submenu).forEach(this._collectContextKeys, this);
         }
     }
-    getActions(options) {
+    createActionGroups(options) {
         const result = [];
-        const allToggleActions = [];
         for (const group of this._menuGroups) {
             const [id, items] = group;
-            const toggleActions = [];
             const activeActions = [];
             for (const item of items) {
                 if (this._contextKeyService.contextMatchesRules(item.when)) {
-                    let action;
                     const isMenuItem = isIMenuItem(item);
-                    const hideActions = new MenuItemActionManageActions(new HideMenuItemAction(this._id, isMenuItem ? item.command : item, this._hiddenStates), allToggleActions);
+                    const menuHide = createMenuHide(this._id, isMenuItem ? item.command : item, this._hiddenStates);
                     if (isMenuItem) {
-                        if (!this._hiddenStates.isHidden(this._id, item.command.id)) {
-                            action = new MenuItemAction(item.command, item.alt, options, hideActions, this._contextKeyService, this._commandService);
-                        }
-                        // add toggle commmand
-                        toggleActions.push(new ToggleMenuItemAction(this._id, item.command, this._hiddenStates));
+                        // MenuItemAction
+                        const actualMenuHide = item.command._isFakeAction ? undefined : menuHide;
+                        activeActions.push(new MenuItemAction(item.command, item.alt, options, actualMenuHide, this._contextKeyService, this._commandService));
                     }
                     else {
-                        action = new SubmenuItemAction(item, hideActions, this._menuService, this._contextKeyService, options);
-                        if (action.actions.length === 0) {
-                            action.dispose();
-                            action = undefined;
+                        // SubmenuItemAction
+                        const groups = new MenuInfo(item.submenu, this._hiddenStates, this._collectContextKeysForSubmenus, this._commandService, this._contextKeyService).createActionGroups(options);
+                        const submenuActions = Separator.join(...groups.map(g => g[1]));
+                        if (submenuActions.length > 0) {
+                            activeActions.push(new SubmenuItemAction(item, menuHide, submenuActions));
                         }
-                        // add toggle submenu - this re-creates ToggleMenuItemAction-instances for submenus but that's OK...
-                        if (action) {
-                            const makeToggleCommand = (id, action) => {
-                                if (action instanceof SubmenuItemAction) {
-                                    return new SubmenuAction(action.id, action.label, action.actions.map(a => makeToggleCommand(action.item.submenu, a)));
-                                }
-                                else if (action instanceof MenuItemAction) {
-                                    return new ToggleMenuItemAction(id, action.item, this._hiddenStates);
-                                }
-                                else {
-                                    return action;
-                                }
-                            };
-                            toggleActions.push(makeToggleCommand(this._id, action));
-                        }
-                    }
-                    if (action) {
-                        activeActions.push(action);
                     }
                 }
             }
             if (activeActions.length > 0) {
                 result.push([id, activeActions]);
-            }
-            if (toggleActions.length > 0) {
-                allToggleActions.push(toggleActions);
             }
         }
         return result;
@@ -302,7 +249,7 @@ let Menu = class Menu {
             return 1;
         }
         // sort on titles
-        return Menu._compareTitles(isIMenuItem(a) ? a.command.title : a.title, isIMenuItem(b) ? b.command.title : b.title);
+        return MenuInfo._compareTitles(isIMenuItem(a) ? a.command.title : a.title, isIMenuItem(b) ? b.command.title : b.title);
     }
     static _compareTitles(a, b) {
         const aStr = typeof a === 'string' ? a : a.original;
@@ -310,38 +257,100 @@ let Menu = class Menu {
         return aStr.localeCompare(bStr);
     }
 };
-Menu = __decorate([
+MenuInfo = __decorate([
     __param(3, ICommandService),
-    __param(4, IContextKeyService),
-    __param(5, IMenuService)
-], Menu);
-class ToggleMenuItemAction {
-    constructor(id, command, hiddenStates) {
-        this.enabled = true;
-        this.tooltip = '';
-        this.id = `toggle/${id.id}/${command.id}`;
-        this.label = typeof command.title === 'string' ? command.title : command.title.value;
-        let isHidden = hiddenStates.isHidden(id, command.id);
-        this.checked = !isHidden;
-        this.run = () => {
-            isHidden = !isHidden;
-            hiddenStates.updateHidden(id, command.id, isHidden);
+    __param(4, IContextKeyService)
+], MenuInfo);
+let MenuImpl = class MenuImpl {
+    constructor(id, hiddenStates, options, commandService, contextKeyService) {
+        this._disposables = new DisposableStore();
+        this._menuInfo = new MenuInfo(id, hiddenStates, options.emitEventsForSubmenuChanges, commandService, contextKeyService);
+        // Rebuild this menu whenever the menu registry reports an event for this MenuId.
+        // This usually happen while code and extensions are loaded and affects the over
+        // structure of the menu
+        const rebuildMenuSoon = new RunOnceScheduler(() => {
+            this._menuInfo.refresh();
+            this._onDidChange.fire({ menu: this, isStructuralChange: true, isEnablementChange: true, isToggleChange: true });
+        }, options.eventDebounceDelay);
+        this._disposables.add(rebuildMenuSoon);
+        this._disposables.add(MenuRegistry.onDidChangeMenu(e => {
+            if (e.has(id)) {
+                rebuildMenuSoon.schedule();
+            }
+        }));
+        // When context keys or storage state changes we need to check if the menu also has changed. However,
+        // we only do that when someone listens on this menu because (1) these events are
+        // firing often and (2) menu are often leaked
+        const lazyListener = this._disposables.add(new DisposableStore());
+        const merge = (events) => {
+            let isStructuralChange = false;
+            let isEnablementChange = false;
+            let isToggleChange = false;
+            for (const item of events) {
+                isStructuralChange = isStructuralChange || item.isStructuralChange;
+                isEnablementChange = isEnablementChange || item.isEnablementChange;
+                isToggleChange = isToggleChange || item.isToggleChange;
+                if (isStructuralChange && isEnablementChange && isToggleChange) {
+                    // everything is TRUE, no need to continue iterating
+                    break;
+                }
+            }
+            return { menu: this, isStructuralChange, isEnablementChange, isToggleChange };
         };
+        const startLazyListener = () => {
+            lazyListener.add(contextKeyService.onDidChangeContext(e => {
+                const isStructuralChange = e.affectsSome(this._menuInfo.structureContextKeys);
+                const isEnablementChange = e.affectsSome(this._menuInfo.preconditionContextKeys);
+                const isToggleChange = e.affectsSome(this._menuInfo.toggledContextKeys);
+                if (isStructuralChange || isEnablementChange || isToggleChange) {
+                    this._onDidChange.fire({ menu: this, isStructuralChange, isEnablementChange, isToggleChange });
+                }
+            }));
+            lazyListener.add(hiddenStates.onDidChange(e => {
+                this._onDidChange.fire({ menu: this, isStructuralChange: true, isEnablementChange: false, isToggleChange: false });
+            }));
+        };
+        this._onDidChange = new DebounceEmitter({
+            // start/stop context key listener
+            onFirstListenerAdd: startLazyListener,
+            onLastListenerRemove: lazyListener.clear.bind(lazyListener),
+            delay: options.eventDebounceDelay,
+            merge
+        });
+        this.onDidChange = this._onDidChange.event;
+    }
+    getActions(options) {
+        return this._menuInfo.createActionGroups(options);
     }
     dispose() {
-        // NOTHING
+        this._disposables.dispose();
+        this._onDidChange.dispose();
     }
-}
-class HideMenuItemAction {
-    constructor(menu, command, hiddenStates) {
-        this.enabled = true;
-        this.tooltip = '';
-        const id = isISubmenuItem(command) ? command.submenu.id : command.id;
-        this.id = `hide/${menu.id}/${id}`;
-        this.label = localize('hide.label', 'Hide \'{0}\'', typeof command.title === 'string' ? command.title : command.title.value);
-        this.run = () => { hiddenStates.updateHidden(menu, id, true); };
-    }
-    dispose() {
-        // NOTHING
-    }
+};
+MenuImpl = __decorate([
+    __param(3, ICommandService),
+    __param(4, IContextKeyService)
+], MenuImpl);
+function createMenuHide(menu, command, states) {
+    const id = isISubmenuItem(command) ? command.submenu.id : command.id;
+    const title = typeof command.title === 'string' ? command.title : command.title.value;
+    const hide = toAction({
+        id: `hide/${menu.id}/${id}`,
+        label: localize('hide.label', 'Hide \'{0}\'', title),
+        run() { states.updateHidden(menu, id, true); }
+    });
+    const toggle = toAction({
+        id: `toggle/${menu.id}/${id}`,
+        label: title,
+        get checked() { return !states.isHidden(menu, id); },
+        run() {
+            const newValue = !states.isHidden(menu, id);
+            states.updateHidden(menu, id, newValue);
+        }
+    });
+    return {
+        hide,
+        toggle,
+        get isHidden() { return !toggle.checked; },
+    };
 }

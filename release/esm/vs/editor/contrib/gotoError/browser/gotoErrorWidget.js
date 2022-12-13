@@ -245,7 +245,7 @@ let MarkerNavigationWidget = class MarkerNavigationWidget extends PeekViewWidget
     }
     _fillHead(container) {
         super._fillHead(container);
-        this._disposables.add(this._actionbarWidget.actionRunner.onBeforeRun(e => this.editor.focus()));
+        this._disposables.add(this._actionbarWidget.actionRunner.onWillRun(e => this.editor.focus()));
         const actions = [];
         const menu = this._menuService.createMenu(MarkerNavigationWidget.TitleMenu, this._contextKeyService);
         createAndFillInActionBarActions(menu, undefined, actions);

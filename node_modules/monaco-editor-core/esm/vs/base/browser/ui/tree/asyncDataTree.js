@@ -41,9 +41,6 @@ function intersects(node, other) {
     return node === other || isAncestor(node, other) || isAncestor(other, node);
 }
 class AsyncDataTreeNodeWrapper {
-    constructor(node) {
-        this.node = node;
-    }
     get element() { return this.node.element.element; }
     get children() { return this.node.children.map(node => new AsyncDataTreeNodeWrapper(node)); }
     get depth() { return this.node.depth; }
@@ -53,6 +50,9 @@ class AsyncDataTreeNodeWrapper {
     get collapsed() { return this.node.collapsed; }
     get visible() { return this.node.visible; }
     get filterData() { return this.node.filterData; }
+    constructor(node) {
+        this.node = node;
+    }
 }
 class AsyncDataTreeRenderer {
     constructor(renderer, nodeMapper, onDidChangeTwistieState) {
@@ -182,6 +182,15 @@ function dfs(node, fn) {
     node.children.forEach(child => dfs(child, fn));
 }
 export class AsyncDataTree {
+    get onDidChangeFocus() { return Event.map(this.tree.onDidChangeFocus, asTreeEvent); }
+    get onDidChangeSelection() { return Event.map(this.tree.onDidChangeSelection, asTreeEvent); }
+    get onMouseDblClick() { return Event.map(this.tree.onMouseDblClick, asTreeMouseEvent); }
+    get onPointer() { return Event.map(this.tree.onPointer, asTreeMouseEvent); }
+    get onDidFocus() { return this.tree.onDidFocus; }
+    get onDidChangeModel() { return this.tree.onDidChangeModel; }
+    get onDidChangeCollapseState() { return this.tree.onDidChangeCollapseState; }
+    get onDidChangeFindOpenState() { return this.tree.onDidChangeFindOpenState; }
+    get onDidDispose() { return this.tree.onDidDispose; }
     constructor(user, container, delegate, renderers, dataSource, options = {}) {
         this.user = user;
         this.dataSource = dataSource;
@@ -209,15 +218,6 @@ export class AsyncDataTree {
         this.nodes.set(null, this.root);
         this.tree.onDidChangeCollapseState(this._onDidChangeCollapseState, this, this.disposables);
     }
-    get onDidChangeFocus() { return Event.map(this.tree.onDidChangeFocus, asTreeEvent); }
-    get onDidChangeSelection() { return Event.map(this.tree.onDidChangeSelection, asTreeEvent); }
-    get onMouseDblClick() { return Event.map(this.tree.onMouseDblClick, asTreeMouseEvent); }
-    get onPointer() { return Event.map(this.tree.onPointer, asTreeMouseEvent); }
-    get onDidFocus() { return this.tree.onDidFocus; }
-    get onDidChangeModel() { return this.tree.onDidChangeModel; }
-    get onDidChangeCollapseState() { return this.tree.onDidChangeCollapseState; }
-    get onDidChangeFindOpenState() { return this.tree.onDidChangeFindOpenState; }
-    get onDidDispose() { return this.tree.onDidDispose; }
     createTree(user, container, delegate, renderers, options) {
         const objectTreeDelegate = new ComposedTreeDelegate(delegate);
         const objectTreeRenderers = renderers.map(r => new AsyncDataTreeRenderer(r, this.nodeMapper, this._onDidChangeNodeSlowState.event));
@@ -388,6 +388,14 @@ export class AsyncDataTree {
             });
             if (result) {
                 return result;
+            }
+            if (node !== this.root) {
+                const treeNode = this.tree.getNode(node);
+                if (treeNode.collapsed) {
+                    node.hasChildren = !!this.dataSource.hasChildren(node.element);
+                    node.stale = true;
+                    return;
+                }
             }
             return this.doRefreshSubTree(node, recursive, viewStateContext);
         });
@@ -610,9 +618,6 @@ export class AsyncDataTree {
     }
 }
 class CompressibleAsyncDataTreeNodeWrapper {
-    constructor(node) {
-        this.node = node;
-    }
     get element() {
         return {
             elements: this.node.element.elements.map(e => e.element),
@@ -627,6 +632,9 @@ class CompressibleAsyncDataTreeNodeWrapper {
     get collapsed() { return this.node.collapsed; }
     get visible() { return this.node.visible; }
     get filterData() { return this.node.filterData; }
+    constructor(node) {
+        this.node = node;
+    }
 }
 class CompressibleAsyncDataTreeRenderer {
     constructor(renderer, nodeMapper, compressibleNodeMapperProvider, onDidChangeTwistieState) {

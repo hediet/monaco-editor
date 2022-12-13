@@ -25,7 +25,7 @@ import '../../../../base/browser/ui/codicons/codiconStyles.js'; // The codicon s
 import { List } from '../../../../base/browser/ui/list/listWidget.js';
 import { createCancelablePromise, disposableTimeout, TimeoutTimer } from '../../../../base/common/async.js';
 import { onUnexpectedError } from '../../../../base/common/errors.js';
-import { Emitter } from '../../../../base/common/event.js';
+import { Emitter, PauseableEmitter } from '../../../../base/common/event.js';
 import { DisposableStore } from '../../../../base/common/lifecycle.js';
 import { clamp } from '../../../../base/common/numbers.js';
 import * as strings from '../../../../base/common/strings.js';
@@ -94,8 +94,8 @@ let SuggestWidget = class SuggestWidget {
         this._explainMode = false;
         this._showTimeout = new TimeoutTimer();
         this._disposables = new DisposableStore();
-        this._onDidSelect = new Emitter();
-        this._onDidFocus = new Emitter();
+        this._onDidSelect = new PauseableEmitter();
+        this._onDidFocus = new PauseableEmitter();
         this._onDidHide = new Emitter();
         this._onDidShow = new Emitter();
         this.onDidSelect = this._onDidSelect.event;
@@ -154,7 +154,7 @@ let SuggestWidget = class SuggestWidget {
         const details = instantiationService.createInstance(SuggestDetailsWidget, this.editor);
         details.onDidClose(this.toggleDetails, this, this._disposables);
         this._details = new SuggestDetailsOverlay(details, this.editor);
-        const applyIconStyle = () => this.element.domNode.classList.toggle('no-icons', !this.editor.getOption(107 /* EditorOption.suggest */).showIcons);
+        const applyIconStyle = () => this.element.domNode.classList.toggle('no-icons', !this.editor.getOption(108 /* EditorOption.suggest */).showIcons);
         applyIconStyle();
         const renderer = instantiationService.createInstance(ItemRenderer, this.editor);
         this._disposables.add(renderer);
@@ -195,7 +195,7 @@ let SuggestWidget = class SuggestWidget {
             }
         });
         this._status = instantiationService.createInstance(SuggestWidgetStatus, this.element.domNode);
-        const applyStatusBarStyle = () => this.element.domNode.classList.toggle('with-status-bar', this.editor.getOption(107 /* EditorOption.suggest */).showStatusBar);
+        const applyStatusBarStyle = () => this.element.domNode.classList.toggle('with-status-bar', this.editor.getOption(108 /* EditorOption.suggest */).showStatusBar);
         applyStatusBarStyle();
         this._disposables.add(attachListStyler(this._list, _themeService, {
             listInactiveFocusBackground: editorSuggestWidgetSelectedBackground,
@@ -209,7 +209,7 @@ let SuggestWidget = class SuggestWidget {
         this._disposables.add(this._list.onDidChangeFocus(e => this._onListFocus(e)));
         this._disposables.add(this.editor.onDidChangeCursorSelection(() => this._onCursorSelectionChanged()));
         this._disposables.add(this.editor.onDidChangeConfiguration(e => {
-            if (e.hasChanged(107 /* EditorOption.suggest */)) {
+            if (e.hasChanged(108 /* EditorOption.suggest */)) {
                 applyStatusBarStyle();
                 applyIconStyle();
             }
@@ -436,11 +436,23 @@ let SuggestWidget = class SuggestWidget {
             return;
         }
         this._focusedItem = undefined;
-        this._list.splice(0, this._list.length, this._completionModel.items);
-        this._setState(isFrozen ? 4 /* State.Frozen */ : 3 /* State.Open */);
-        if (selectionIndex >= 0) {
-            this._list.reveal(selectionIndex, 0);
-            this._list.setFocus([selectionIndex]);
+        // calling list.splice triggers focus event which this widget forwards. That can lead to
+        // suggestions being cancelled and the widget being cleared (and hidden). All this happens
+        // before revealing and focusing is done which means revealing and focusing will fail when
+        // they get run.
+        this._onDidFocus.pause();
+        this._onDidSelect.pause();
+        try {
+            this._list.splice(0, this._list.length, this._completionModel.items);
+            this._setState(isFrozen ? 4 /* State.Frozen */ : 3 /* State.Open */);
+            if (selectionIndex >= 0) {
+                this._list.reveal(selectionIndex, 0);
+                this._list.setFocus([selectionIndex]);
+            }
+        }
+        finally {
+            this._onDidFocus.resume();
+            this._onDidSelect.resume();
         }
         this._layout(this.element.size);
         // Reset focus border
@@ -638,7 +650,7 @@ let SuggestWidget = class SuggestWidget {
         let height = size.height;
         let width = size.width;
         // status bar
-        this._status.element.style.lineHeight = `${info.itemHeight}px`;
+        this._status.element.style.height = `${info.itemHeight}px`;
         if (this._state === 2 /* State.Empty */ || this._state === 1 /* State.Loading */) {
             // showing a message only
             height = info.itemHeight + info.borderHeight;
@@ -718,8 +730,8 @@ let SuggestWidget = class SuggestWidget {
     }
     getLayoutInfo() {
         const fontInfo = this.editor.getOption(45 /* EditorOption.fontInfo */);
-        const itemHeight = clamp(this.editor.getOption(109 /* EditorOption.suggestLineHeight */) || fontInfo.lineHeight, 8, 1000);
-        const statusBarHeight = !this.editor.getOption(107 /* EditorOption.suggest */).showStatusBar || this._state === 2 /* State.Empty */ || this._state === 1 /* State.Loading */ ? 0 : itemHeight;
+        const itemHeight = clamp(this.editor.getOption(110 /* EditorOption.suggestLineHeight */) || fontInfo.lineHeight, 8, 1000);
+        const statusBarHeight = !this.editor.getOption(108 /* EditorOption.suggest */).showStatusBar || this._state === 2 /* State.Empty */ || this._state === 1 /* State.Loading */ ? 0 : itemHeight;
         const borderWidth = this._details.widget.borderWidth;
         const borderHeight = 2 * borderWidth;
         return {

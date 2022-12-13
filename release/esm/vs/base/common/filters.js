@@ -266,7 +266,15 @@ function _matchesWords(word, target, i, j, contiguous) {
                 nextWordIndex++;
             }
         }
-        return result === null ? null : join({ start: j, end: j + 1 }, result);
+        if (!result) {
+            return null;
+        }
+        // If the characters don't exactly match, then they must be word separators (see charactersMatch(...)).
+        // We don't want to include this in the matches but we don't want to throw the target out all together so we return `result`.
+        if (word.charCodeAt(i) !== target.charCodeAt(j)) {
+            return result;
+        }
+        return join({ start: j, end: j + 1 }, result);
     }
 }
 function nextWord(word, start) {

@@ -3,7 +3,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 var _a;
-import { createStringBuilder } from '../../common/core/stringBuilder.js';
+import { StringBuilder } from '../../common/core/stringBuilder.js';
 import * as strings from '../../../base/common/strings.js';
 import { applyFontInfo } from '../config/domFontInfo.js';
 import { LineInjectedText } from '../../common/textModelEvents.js';
@@ -58,7 +58,7 @@ function createLineBreaks(requests, fontInfo, tabSize, firstLineBreakColumn, wra
     const additionalIndentLength = Math.ceil(fontInfo.spaceWidth * additionalIndentSize);
     const containerDomNode = document.createElement('div');
     applyFontInfo(containerDomNode, fontInfo);
-    const sb = createStringBuilder(10000);
+    const sb = new StringBuilder(10000);
     const firstNonWhitespaceIndices = [];
     const wrappedTextIndentLengths = [];
     const renderLineContents = [];

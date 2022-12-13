@@ -49,7 +49,7 @@ export class Toggle extends Widget {
                 ev.preventDefault();
             }
         });
-        this.ignoreGesture(this.domNode);
+        this._register(this.ignoreGesture(this.domNode));
         this.onkeydown(this.domNode, (keyboardEvent) => {
             if (keyboardEvent.keyCode === 10 /* KeyCode.Space */ || keyboardEvent.keyCode === 3 /* KeyCode.Enter */) {
                 this.checked = !this._checked;

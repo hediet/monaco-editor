@@ -140,6 +140,20 @@ define(["require", "exports", "../../fillers/monaco-editor-core"], function (req
             // After <script ... type =
             scriptAfterTypeEquals: [
                 [
+                    /"module"/,
+                    {
+                        token: 'attribute.value',
+                        switchTo: '@scriptWithCustomType.text/javascript'
+                    }
+                ],
+                [
+                    /'module'/,
+                    {
+                        token: 'attribute.value',
+                        switchTo: '@scriptWithCustomType.text/javascript'
+                    }
+                ],
+                [
                     /"([^"]*)"/,
                     {
                         token: 'attribute.value',

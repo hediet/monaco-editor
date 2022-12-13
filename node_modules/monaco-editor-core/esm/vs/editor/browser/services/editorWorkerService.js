@@ -81,8 +81,8 @@ let EditorWorkerService = class EditorWorkerService extends Disposable {
     computedUnicodeHighlights(uri, options, range) {
         return this._workerManager.withWorker().then(client => client.computedUnicodeHighlights(uri, options, range));
     }
-    computeDiff(original, modified, ignoreTrimWhitespace, maxComputationTime) {
-        return this._workerManager.withWorker().then(client => client.computeDiff(original, modified, ignoreTrimWhitespace, maxComputationTime));
+    computeDiff(original, modified, options) {
+        return this._workerManager.withWorker().then(client => client.computeDiff(original, modified, options));
     }
     computeMoreMinimalEdits(resource, edits) {
         if (isNonEmptyArray(edits)) {
@@ -389,9 +389,9 @@ export class EditorWorkerClient extends Disposable {
             return proxy.computeUnicodeHighlights(uri.toString(), options, range);
         });
     }
-    computeDiff(original, modified, ignoreTrimWhitespace, maxComputationTime) {
+    computeDiff(original, modified, options) {
         return this._withSyncedResources([original, modified], /* forceLargeModels */ true).then(proxy => {
-            return proxy.computeDiff(original.toString(), modified.toString(), ignoreTrimWhitespace, maxComputationTime);
+            return proxy.computeDiff(original.toString(), modified.toString(), options);
         });
     }
     computeMoreMinimalEdits(resource, edits) {

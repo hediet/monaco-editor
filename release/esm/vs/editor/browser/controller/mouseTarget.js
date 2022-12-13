@@ -75,8 +75,8 @@ export class MouseTarget {
     static createOverlayWidget(element, mouseColumn, detail) {
         return { type: 12 /* MouseTargetType.OVERLAY_WIDGET */, element, mouseColumn, position: null, range: null, detail };
     }
-    static createOutsideEditor(mouseColumn, position) {
-        return { type: 13 /* MouseTargetType.OUTSIDE_EDITOR */, element: null, mouseColumn, position, range: this._deduceRage(position) };
+    static createOutsideEditor(mouseColumn, position, outsidePosition, outsideDistance) {
+        return { type: 13 /* MouseTargetType.OUTSIDE_EDITOR */, element: null, mouseColumn, position, range: this._deduceRage(position), outsidePosition, outsideDistance };
     }
     static _typeToString(type) {
         if (type === 1 /* MouseTargetType.TEXTAREA */) {
@@ -166,10 +166,10 @@ export class HitTestContext {
     constructor(context, viewHelper, lastRenderData) {
         this.viewModel = context.viewModel;
         const options = context.configuration.options;
-        this.layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        this.layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         this.viewDomNode = viewHelper.viewDomNode;
         this.lineHeight = options.get(60 /* EditorOption.lineHeight */);
-        this.stickyTabStops = options.get(105 /* EditorOption.stickyTabStops */);
+        this.stickyTabStops = options.get(106 /* EditorOption.stickyTabStops */);
         this.typicalHalfwidthCharacterWidth = options.get(45 /* EditorOption.fontInfo */).typicalHalfwidthCharacterWidth;
         this.lastRenderData = lastRenderData;
         this._context = context;
@@ -594,7 +594,7 @@ export class MouseTargetFactory {
     }
     getMouseColumn(relativePos) {
         const options = this._context.configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         const mouseContentHorizontalOffset = this._context.viewLayout.getCurrentScrollLeft() + relativePos.x - layoutInfo.contentLeft;
         return MouseTargetFactory._getMouseColumn(mouseContentHorizontalOffset, options.get(45 /* EditorOption.fontInfo */).typicalHalfwidthCharacterWidth);
     }
@@ -848,15 +848,15 @@ export function shadowCaretRangeFromPoint(shadowRoot, x, y) {
     return range;
 }
 class CharWidthReader {
-    constructor() {
-        this._cache = {};
-        this._canvas = document.createElement('canvas');
-    }
     static getInstance() {
         if (!CharWidthReader._INSTANCE) {
             CharWidthReader._INSTANCE = new CharWidthReader();
         }
         return CharWidthReader._INSTANCE;
+    }
+    constructor() {
+        this._cache = {};
+        this._canvas = document.createElement('canvas');
     }
     getCharWidth(char, font) {
         const cacheKey = char + font;

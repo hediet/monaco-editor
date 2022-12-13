@@ -16,15 +16,15 @@ import { globals } from '../../../base/common/platform.js';
 import { URI } from '../../../base/common/uri.js';
 import { Position } from '../core/position.js';
 import { Range } from '../core/range.js';
-import { DiffComputer } from '../diff/diffComputer.js';
 import { MirrorTextModel as BaseMirrorModel } from '../model/mirrorTextModel.js';
 import { ensureValidWordDefinition, getWordAtText } from '../core/wordHelper.js';
 import { computeLinks } from '../languages/linkComputer.js';
 import { BasicInplaceReplace } from '../languages/supports/inplaceReplaceSupport.js';
 import { createMonacoBaseAPI } from './editorBaseApi.js';
-import * as types from '../../../base/common/types.js';
 import { StopWatch } from '../../../base/common/stopwatch.js';
 import { UnicodeTextModelHighlighter } from './unicodeTextModelHighlighter.js';
+import { linesDiffComputers } from '../diff/linesDiffComputers.js';
+import { createProxyObject, getAllMethodNames } from '../../../base/common/objects.js';
 /**
  * @internal
  */
@@ -241,32 +241,38 @@ export class EditorSimpleWorker {
         });
     }
     // ---- BEGIN diff --------------------------------------------------------------------------
-    computeDiff(originalUrl, modifiedUrl, ignoreTrimWhitespace, maxComputationTime) {
+    computeDiff(originalUrl, modifiedUrl, options) {
         return __awaiter(this, void 0, void 0, function* () {
             const original = this._getModel(originalUrl);
             const modified = this._getModel(modifiedUrl);
             if (!original || !modified) {
                 return null;
             }
-            return EditorSimpleWorker.computeDiff(original, modified, ignoreTrimWhitespace, maxComputationTime);
+            return EditorSimpleWorker.computeDiff(original, modified, options);
         });
     }
-    static computeDiff(originalTextModel, modifiedTextModel, ignoreTrimWhitespace, maxComputationTime) {
+    static computeDiff(originalTextModel, modifiedTextModel, options) {
+        const diffAlgorithm = options.diffAlgorithm === 'experimental' ? linesDiffComputers.experimental : linesDiffComputers.smart;
         const originalLines = originalTextModel.getLinesContent();
         const modifiedLines = modifiedTextModel.getLinesContent();
-        const diffComputer = new DiffComputer(originalLines, modifiedLines, {
-            shouldComputeCharChanges: true,
-            shouldPostProcessCharChanges: true,
-            shouldIgnoreTrimWhitespace: ignoreTrimWhitespace,
-            shouldMakePrettyDiff: true,
-            maxComputationTime: maxComputationTime
-        });
-        const diffResult = diffComputer.computeDiff();
-        const identical = (diffResult.changes.length > 0 ? false : this._modelsAreIdentical(originalTextModel, modifiedTextModel));
+        const result = diffAlgorithm.computeDiff(originalLines, modifiedLines, options);
+        const identical = (result.changes.length > 0 ? false : this._modelsAreIdentical(originalTextModel, modifiedTextModel));
         return {
-            quitEarly: diffResult.quitEarly,
-            identical: identical,
-            changes: diffResult.changes
+            identical,
+            quitEarly: result.quitEarly,
+            changes: result.changes.map(m => {
+                var _a;
+                return ([m.originalRange.startLineNumber, m.originalRange.endLineNumberExclusive, m.modifiedRange.startLineNumber, m.modifiedRange.endLineNumberExclusive, (_a = m.innerChanges) === null || _a === void 0 ? void 0 : _a.map(m => [
+                        m.originalRange.startLineNumber,
+                        m.originalRange.startColumn,
+                        m.originalRange.endLineNumber,
+                        m.originalRange.endColumn,
+                        m.modifiedRange.startLineNumber,
+                        m.modifiedRange.startColumn,
+                        m.modifiedRange.endLineNumber,
+                        m.modifiedRange.endColumn,
+                    ])]);
+            })
         };
     }
     static _modelsAreIdentical(original, modified) {
@@ -437,7 +443,7 @@ export class EditorSimpleWorker {
         const proxyMethodRequest = (method, args) => {
             return this._host.fhr(method, args);
         };
-        const foreignHost = types.createProxyObject(foreignHostMethods, proxyMethodRequest);
+        const foreignHost = createProxyObject(foreignHostMethods, proxyMethodRequest);
         const ctx = {
             host: foreignHost,
             getMirrorModels: () => {
@@ -447,14 +453,14 @@ export class EditorSimpleWorker {
         if (this._foreignModuleFactory) {
             this._foreignModule = this._foreignModuleFactory(ctx, createData);
             // static foreing module
-            return Promise.resolve(types.getAllMethodNames(this._foreignModule));
+            return Promise.resolve(getAllMethodNames(this._foreignModule));
         }
         // ESM-comment-begin
         // 		return new Promise<any>((resolve, reject) => {
         // 			require([moduleId], (foreignModule: { create: IForeignModuleFactory }) => {
         // 				this._foreignModule = foreignModule.create(ctx, createData);
         // 
-        // 				resolve(types.getAllMethodNames(this._foreignModule));
+        // 				resolve(getAllMethodNames(this._foreignModule));
         // 
         // 			}, reject);
         // 		});

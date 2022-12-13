@@ -324,7 +324,7 @@ class WordHighlighter {
             this._stopAll();
             const myRequestId = ++this.workerRequestTokenId;
             this.workerRequestCompleted = false;
-            this.workerRequest = computeOccurencesAtPosition(this.providers, this.model, this.editor.getSelection(), this.editor.getOption(118 /* EditorOption.wordSeparators */));
+            this.workerRequest = computeOccurencesAtPosition(this.providers, this.model, this.editor.getSelection(), this.editor.getOption(119 /* EditorOption.wordSeparators */));
             this.workerRequest.result.then(data => {
                 if (myRequestId === this.workerRequestTokenId) {
                     this.workerRequestCompleted = true;
@@ -419,6 +419,9 @@ WordHighlighter._REGULAR_OPTIONS = ModelDecorationOptions.register({
     },
 });
 let WordHighlighterContribution = class WordHighlighterContribution extends Disposable {
+    static get(editor) {
+        return editor.getContribution(WordHighlighterContribution.ID);
+    }
     constructor(editor, contextKeyService, languageFeaturesService) {
         super();
         this.wordHighlighter = null;
@@ -436,9 +439,6 @@ let WordHighlighterContribution = class WordHighlighterContribution extends Disp
         }));
         createWordHighlighterIfPossible();
     }
-    static get(editor) {
-        return editor.getContribution(WordHighlighterContribution.ID);
-    }
     saveViewState() {
         if (this.wordHighlighter && this.wordHighlighter.hasDecorations()) {
             return true;
@@ -446,14 +446,12 @@ let WordHighlighterContribution = class WordHighlighterContribution extends Disp
         return false;
     }
     moveNext() {
-        if (this.wordHighlighter) {
-            this.wordHighlighter.moveNext();
-        }
+        var _a;
+        (_a = this.wordHighlighter) === null || _a === void 0 ? void 0 : _a.moveNext();
     }
     moveBack() {
-        if (this.wordHighlighter) {
-            this.wordHighlighter.moveBack();
-        }
+        var _a;
+        (_a = this.wordHighlighter) === null || _a === void 0 ? void 0 : _a.moveBack();
     }
     restoreViewState(state) {
         if (this.wordHighlighter && state) {

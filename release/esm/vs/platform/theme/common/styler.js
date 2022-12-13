@@ -2,7 +2,9 @@
  *  Copyright (c) Microsoft Corporation. All rights reserved.
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
-import { activeContrastBorder, badgeBackground, badgeForeground, contrastBorder, inputActiveOptionBackground, inputActiveOptionBorder, inputActiveOptionForeground, inputBackground, inputBorder, inputForeground, inputValidationErrorBackground, inputValidationErrorBorder, inputValidationErrorForeground, inputValidationInfoBackground, inputValidationInfoBorder, inputValidationInfoForeground, inputValidationWarningBackground, inputValidationWarningBorder, inputValidationWarningForeground, listActiveSelectionBackground, listActiveSelectionForeground, listActiveSelectionIconForeground, listDropBackground, listFilterWidgetBackground, listFilterWidgetNoMatchesOutline, listFilterWidgetOutline, listFocusBackground, listFocusForeground, listFocusOutline, listHoverBackground, listHoverForeground, listInactiveFocusBackground, listInactiveFocusOutline, listInactiveSelectionBackground, listInactiveSelectionForeground, listInactiveSelectionIconForeground, menuBackground, menuBorder, menuForeground, menuSelectionBackground, menuSelectionBorder, menuSelectionForeground, menuSeparatorBackground, resolveColorValue, scrollbarShadow, scrollbarSliderActiveBackground, scrollbarSliderBackground, scrollbarSliderHoverBackground, tableColumnsBorder, tableOddRowsBackgroundColor, treeIndentGuidesStroke, widgetShadow, listFocusAndSelectionOutline, listFilterWidgetShadow } from './colorRegistry.js';
+import { Color } from '../../../base/common/color.js';
+import { activeContrastBorder, badgeBackground, badgeForeground, contrastBorder, editorWidgetBorder, focusBorder, inputActiveOptionBackground, inputActiveOptionBorder, inputActiveOptionForeground, inputBackground, inputBorder, inputForeground, inputValidationErrorBackground, inputValidationErrorBorder, inputValidationErrorForeground, inputValidationInfoBackground, inputValidationInfoBorder, inputValidationInfoForeground, inputValidationWarningBackground, inputValidationWarningBorder, inputValidationWarningForeground, listActiveSelectionBackground, listActiveSelectionForeground, listActiveSelectionIconForeground, listDropBackground, listFilterWidgetBackground, listFilterWidgetNoMatchesOutline, listFilterWidgetOutline, listFocusBackground, listFocusForeground, listFocusOutline, listHoverBackground, listHoverForeground, listInactiveFocusBackground, listInactiveFocusOutline, listInactiveSelectionBackground, listInactiveSelectionForeground, listInactiveSelectionIconForeground, menuBackground, menuBorder, menuForeground, menuSelectionBackground, menuSelectionBorder, menuSelectionForeground, menuSeparatorBackground, pickerGroupForeground, quickInputListFocusBackground, quickInputListFocusForeground, quickInputListFocusIconForeground, resolveColorValue, scrollbarShadow, scrollbarSliderActiveBackground, scrollbarSliderBackground, scrollbarSliderHoverBackground, selectBackground, selectBorder, selectForeground, selectListBackground, tableColumnsBorder, tableOddRowsBackgroundColor, treeIndentGuidesStroke, widgetShadow, listFocusAndSelectionOutline, listFilterWidgetShadow } from './colorRegistry.js';
+import { isHighContrast } from './theme.js';
 export function computeStyles(theme, styleMap) {
     const styles = Object.create(null);
     for (const key in styleMap) {
@@ -31,6 +33,24 @@ export function attachBadgeStyler(widget, themeService, style) {
         badgeBackground: (style === null || style === void 0 ? void 0 : style.badgeBackground) || badgeBackground,
         badgeForeground: (style === null || style === void 0 ? void 0 : style.badgeForeground) || badgeForeground,
         badgeBorder: contrastBorder
+    }, widget);
+}
+export function attachSelectBoxStyler(widget, themeService, style) {
+    return attachStyler(themeService, {
+        selectBackground: (style === null || style === void 0 ? void 0 : style.selectBackground) || selectBackground,
+        selectListBackground: (style === null || style === void 0 ? void 0 : style.selectListBackground) || selectListBackground,
+        selectForeground: (style === null || style === void 0 ? void 0 : style.selectForeground) || selectForeground,
+        decoratorRightForeground: (style === null || style === void 0 ? void 0 : style.pickerGroupForeground) || pickerGroupForeground,
+        selectBorder: (style === null || style === void 0 ? void 0 : style.selectBorder) || selectBorder,
+        focusBorder: (style === null || style === void 0 ? void 0 : style.focusBorder) || focusBorder,
+        listFocusBackground: (style === null || style === void 0 ? void 0 : style.listFocusBackground) || quickInputListFocusBackground,
+        listInactiveSelectionIconForeground: (style === null || style === void 0 ? void 0 : style.listInactiveSelectionIconForeground) || quickInputListFocusIconForeground,
+        listFocusForeground: (style === null || style === void 0 ? void 0 : style.listFocusForeground) || quickInputListFocusForeground,
+        listFocusOutline: (style === null || style === void 0 ? void 0 : style.listFocusOutline) || ((theme) => isHighContrast(theme.type) ? activeContrastBorder : Color.transparent),
+        listHoverBackground: (style === null || style === void 0 ? void 0 : style.listHoverBackground) || listHoverBackground,
+        listHoverForeground: (style === null || style === void 0 ? void 0 : style.listHoverForeground) || listHoverForeground,
+        listHoverOutline: (style === null || style === void 0 ? void 0 : style.listFocusOutline) || activeContrastBorder,
+        selectListBorder: (style === null || style === void 0 ? void 0 : style.selectListBorder) || editorWidgetBorder
     }, widget);
 }
 export function attachListStyler(widget, themeService, overrides) {
@@ -79,6 +99,9 @@ export const defaultListStyles = {
     inputValidationErrorForeground,
     inputValidationErrorBorder,
 };
+export function attachStylerCallback(themeService, colors, callback) {
+    return attachStyler(themeService, colors, callback);
+}
 export const defaultMenuStyles = {
     shadowColor: widgetShadow,
     borderColor: menuBorder,

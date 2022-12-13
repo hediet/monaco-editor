@@ -32,6 +32,7 @@ import { contrastBorder, editorFindMatch, editorFindMatchBorder, editorFindMatch
 import { registerIcon, widgetClose } from '../../../../platform/theme/common/iconRegistry.js';
 import { registerThemingParticipant, ThemeIcon } from '../../../../platform/theme/common/themeService.js';
 import { isHighContrast } from '../../../../platform/theme/common/theme.js';
+import { assertIsDefined } from '../../../../base/common/types.js';
 const findSelectionIcon = registerIcon('find-selection', Codicon.selection, nls.localize('findSelectionIcon', 'Icon for \'Find in Selection\' in the editor find widget.'));
 const findCollapsedIcon = registerIcon('find-collapsed', Codicon.chevronRight, nls.localize('findCollapsedIcon', 'Icon to indicate that the editor find widget is collapsed.'));
 const findExpandedIcon = registerIcon('find-expanded', Codicon.chevronDown, nls.localize('findExpandedIcon', 'Icon to indicate that the editor find widget is expanded.'));
@@ -116,7 +117,7 @@ export class FindWidget extends Widget {
                 }
                 this._updateButtons();
             }
-            if (e.hasChanged(132 /* EditorOption.layoutInfo */)) {
+            if (e.hasChanged(133 /* EditorOption.layoutInfo */)) {
                 this._tryUpdateWidgetWidth();
             }
             if (e.hasChanged(2 /* EditorOption.accessibilitySupport */)) {
@@ -790,8 +791,9 @@ export class FindWidget extends Widget {
             flexibleHeight,
             flexibleWidth,
             flexibleMaxHeight: 118,
+            showCommonFindToggles: true,
             showHistoryHint: () => showHistoryKeybindingHint(this._keybindingService)
-        }, this._contextKeyService, true));
+        }, this._contextKeyService));
         this._findInput.setRegex(!!this._state.isRegex);
         this._findInput.setCaseSensitive(!!this._state.matchCase);
         this._findInput.setWholeWords(!!this._state.wholeWord);
@@ -841,7 +843,7 @@ export class FindWidget extends Widget {
             label: NLS_PREVIOUS_MATCH_BTN_LABEL + this._keybindingLabelFor(FIND_IDS.PreviousMatchFindAction),
             icon: findPreviousMatchIcon,
             onTrigger: () => {
-                this._codeEditor.getAction(FIND_IDS.PreviousMatchFindAction).run().then(undefined, onUnexpectedError);
+                assertIsDefined(this._codeEditor.getAction(FIND_IDS.PreviousMatchFindAction)).run().then(undefined, onUnexpectedError);
             }
         }));
         // Next button
@@ -849,7 +851,7 @@ export class FindWidget extends Widget {
             label: NLS_NEXT_MATCH_BTN_LABEL + this._keybindingLabelFor(FIND_IDS.NextMatchFindAction),
             icon: findNextMatchIcon,
             onTrigger: () => {
-                this._codeEditor.getAction(FIND_IDS.NextMatchFindAction).run().then(undefined, onUnexpectedError);
+                assertIsDefined(this._codeEditor.getAction(FIND_IDS.NextMatchFindAction)).run().then(undefined, onUnexpectedError);
             }
         }));
         const findPart = document.createElement('div');

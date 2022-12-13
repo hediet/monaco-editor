@@ -74,7 +74,7 @@ export class EditorScrollbar extends ViewPart {
     }
     _setLayout() {
         const options = this._context.configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         this.scrollbarDomNode.setLeft(layoutInfo.contentLeft);
         const minimap = options.get(66 /* EditorOption.minimap */);
         const side = minimap.side;
@@ -118,7 +118,7 @@ export class EditorScrollbar extends ViewPart {
             };
             this.scrollbar.updateOptions(newOpts);
         }
-        if (e.hasChanged(132 /* EditorOption.layoutInfo */)) {
+        if (e.hasChanged(133 /* EditorOption.layoutInfo */)) {
             this._setLayout();
         }
         return true;

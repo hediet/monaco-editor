@@ -5,7 +5,7 @@
 import * as dom from '../../../browser/dom.js';
 import { StandardKeyboardEvent } from '../../../browser/keyboardEvent.js';
 import { StandardMouseEvent } from '../../../browser/mouseEvent.js';
-import { InputBox } from '../../../browser/ui/inputbox/inputBox.js';
+import { FindInput } from '../../../browser/ui/findinput/findInput.js';
 import { Disposable } from '../../../common/lifecycle.js';
 import Severity from '../../../common/severity.js';
 import './media/quickInput.css';
@@ -15,75 +15,78 @@ export class QuickInputBox extends Disposable {
         super();
         this.parent = parent;
         this.onKeyDown = (handler) => {
-            return dom.addDisposableListener(this.inputBox.inputElement, dom.EventType.KEY_DOWN, (e) => {
+            return dom.addDisposableListener(this.findInput.inputBox.inputElement, dom.EventType.KEY_DOWN, (e) => {
                 handler(new StandardKeyboardEvent(e));
             });
         };
         this.onMouseDown = (handler) => {
-            return dom.addDisposableListener(this.inputBox.inputElement, dom.EventType.MOUSE_DOWN, (e) => {
+            return dom.addDisposableListener(this.findInput.inputBox.inputElement, dom.EventType.MOUSE_DOWN, (e) => {
                 handler(new StandardMouseEvent(e));
             });
         };
         this.onDidChange = (handler) => {
-            return this.inputBox.onDidChange(handler);
+            return this.findInput.onDidChange(handler);
         };
         this.container = dom.append(this.parent, $('.quick-input-box'));
-        this.inputBox = this._register(new InputBox(this.container, undefined));
+        this.findInput = this._register(new FindInput(this.container, undefined, { label: '' }));
     }
     get value() {
-        return this.inputBox.value;
+        return this.findInput.getValue();
     }
     set value(value) {
-        this.inputBox.value = value;
+        this.findInput.setValue(value);
     }
     select(range = null) {
-        this.inputBox.select(range);
+        this.findInput.inputBox.select(range);
     }
     isSelectionAtEnd() {
-        return this.inputBox.isSelectionAtEnd();
+        return this.findInput.inputBox.isSelectionAtEnd();
     }
     get placeholder() {
-        return this.inputBox.inputElement.getAttribute('placeholder') || '';
+        return this.findInput.inputBox.inputElement.getAttribute('placeholder') || '';
     }
     set placeholder(placeholder) {
-        this.inputBox.setPlaceHolder(placeholder);
+        this.findInput.inputBox.setPlaceHolder(placeholder);
     }
     get ariaLabel() {
-        return this.inputBox.getAriaLabel();
+        return this.findInput.inputBox.getAriaLabel();
     }
     set ariaLabel(ariaLabel) {
-        this.inputBox.setAriaLabel(ariaLabel);
+        this.findInput.inputBox.setAriaLabel(ariaLabel);
     }
     get password() {
-        return this.inputBox.inputElement.type === 'password';
+        return this.findInput.inputBox.inputElement.type === 'password';
     }
     set password(password) {
-        this.inputBox.inputElement.type = password ? 'password' : 'text';
+        this.findInput.inputBox.inputElement.type = password ? 'password' : 'text';
+    }
+    set enabled(enabled) {
+        this.findInput.setEnabled(enabled);
     }
     setAttribute(name, value) {
-        this.inputBox.inputElement.setAttribute(name, value);
+        this.findInput.inputBox.inputElement.setAttribute(name, value);
     }
     removeAttribute(name) {
-        this.inputBox.inputElement.removeAttribute(name);
+        this.findInput.inputBox.inputElement.removeAttribute(name);
     }
     showDecoration(decoration) {
         if (decoration === Severity.Ignore) {
-            this.inputBox.hideMessage();
+            this.findInput.clearMessage();
         }
         else {
-            this.inputBox.showMessage({ type: decoration === Severity.Info ? 1 /* MessageType.INFO */ : decoration === Severity.Warning ? 2 /* MessageType.WARNING */ : 3 /* MessageType.ERROR */, content: '' });
+            this.findInput.showMessage({ type: decoration === Severity.Info ? 1 /* MessageType.INFO */ : decoration === Severity.Warning ? 2 /* MessageType.WARNING */ : 3 /* MessageType.ERROR */, content: '' });
         }
     }
     stylesForType(decoration) {
-        return this.inputBox.stylesForType(decoration === Severity.Info ? 1 /* MessageType.INFO */ : decoration === Severity.Warning ? 2 /* MessageType.WARNING */ : 3 /* MessageType.ERROR */);
+        return this.findInput.inputBox.stylesForType(decoration === Severity.Info ? 1 /* MessageType.INFO */ : decoration === Severity.Warning ? 2 /* MessageType.WARNING */ : 3 /* MessageType.ERROR */);
     }
     setFocus() {
-        this.inputBox.focus();
+        this.findInput.focus();
     }
     layout() {
-        this.inputBox.layout();
+        this.findInput.inputBox.layout();
     }
     style(styles) {
-        this.inputBox.style(styles);
+        this.findInput.style(styles);
     }
 }

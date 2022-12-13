@@ -13,7 +13,7 @@ class Settings {
     constructor(config, theme) {
         const options = config.options;
         this.lineHeight = options.get(60 /* EditorOption.lineHeight */);
-        this.pixelRatio = options.get(130 /* EditorOption.pixelRatio */);
+        this.pixelRatio = options.get(131 /* EditorOption.pixelRatio */);
         this.overviewRulerLanes = options.get(75 /* EditorOption.overviewRulerLanes */);
         this.renderBorder = options.get(74 /* EditorOption.overviewRulerBorder */);
         const borderColor = theme.getColor(editorOverviewRulerBorder);
@@ -27,20 +27,16 @@ class Settings {
         const minimapSide = minimapOpts.side;
         const themeColor = theme.getColor(editorOverviewRulerBackground);
         const defaultBackground = TokenizationRegistry.getDefaultBackground();
-        let backgroundColor = null;
-        if (themeColor !== undefined) {
-            backgroundColor = themeColor;
+        if (themeColor) {
+            this.backgroundColor = themeColor;
         }
-        else if (minimapEnabled) {
-            backgroundColor = defaultBackground;
-        }
-        if (backgroundColor === null || minimapSide === 'left') {
-            this.backgroundColor = null;
+        else if (minimapEnabled && minimapSide === 'right') {
+            this.backgroundColor = defaultBackground;
         }
         else {
-            this.backgroundColor = Color.Format.CSS.formatHex(backgroundColor);
+            this.backgroundColor = null;
         }
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         const position = layoutInfo.overviewRuler;
         this.top = position.top;
         this.right = position.right;
@@ -152,7 +148,7 @@ class Settings {
             && this.hideCursor === other.hideCursor
             && this.cursorColor === other.cursorColor
             && this.themeType === other.themeType
-            && this.backgroundColor === other.backgroundColor
+            && Color.equals(this.backgroundColor, other.backgroundColor)
             && this.top === other.top
             && this.right === other.right
             && this.domWidth === other.domWidth
@@ -241,9 +237,10 @@ export class DecorationsOverviewRuler extends ViewPart {
         this._render();
     }
     _render() {
+        const backgroundColor = this._settings.backgroundColor;
         if (this._settings.overviewRulerLanes === 0) {
             // overview ruler is off
-            this._domNode.setBackgroundColor(this._settings.backgroundColor ? this._settings.backgroundColor : '');
+            this._domNode.setBackgroundColor(backgroundColor ? Color.Format.CSS.formatHexA(backgroundColor) : '');
             this._domNode.setDisplay('none');
             return;
         }
@@ -258,12 +255,23 @@ export class DecorationsOverviewRuler extends ViewPart {
         const minDecorationHeight = (6 /* Constants.MIN_DECORATION_HEIGHT */ * this._settings.pixelRatio) | 0;
         const halfMinDecorationHeight = (minDecorationHeight / 2) | 0;
         const canvasCtx = this._domNode.domNode.getContext('2d');
-        if (this._settings.backgroundColor === null) {
-            canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        if (backgroundColor) {
+            if (backgroundColor.isOpaque()) {
+                // We have a background color which is opaque, we can just paint the entire surface with it
+                canvasCtx.fillStyle = Color.Format.CSS.formatHexA(backgroundColor);
+                canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+            }
+            else {
+                // We have a background color which is transparent, we need to first clear the surface and
+                // then fill it
+                canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+                canvasCtx.fillStyle = Color.Format.CSS.formatHexA(backgroundColor);
+                canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+            }
         }
         else {
-            canvasCtx.fillStyle = this._settings.backgroundColor;
-            canvasCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+            // We don't have a background color
+            canvasCtx.clearRect(0, 0, canvasWidth, canvasHeight);
         }
         const x = this._settings.x;
         const w = this._settings.w;

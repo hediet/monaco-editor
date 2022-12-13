@@ -32,6 +32,9 @@ class StackElement {
     }
 }
 export class CursorUndoRedoController extends Disposable {
+    static get(editor) {
+        return editor.getContribution(CursorUndoRedoController.ID);
+    }
     constructor(editor) {
         super();
         this._editor = editor;
@@ -67,9 +70,6 @@ export class CursorUndoRedoController extends Disposable {
                 }
             }
         }));
-    }
-    static get(editor) {
-        return editor.getContribution(CursorUndoRedoController.ID);
     }
     cursorUndo() {
         if (!this._editor.hasModel() || this._undoStack.length === 0) {

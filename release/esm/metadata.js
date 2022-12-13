@@ -163,6 +163,10 @@ exports.features = [
     "entry": "vs/editor/standalone/browser/quickAccess/standaloneGotoSymbolQuickAccess"
   },
   {
+    "label": "readOnlyMessage",
+    "entry": "vs/editor/contrib/readOnlyMessage/browser/contribution"
+  },
+  {
     "label": "referenceSearch",
     "entry": "vs/editor/standalone/browser/referenceSearch/standaloneReferenceSearch"
   },
@@ -177,6 +181,10 @@ exports.features = [
   {
     "label": "snippet",
     "entry": "vs/editor/contrib/snippet/browser/snippetController2"
+  },
+  {
+    "label": "stickyScroll",
+    "entry": "vs/editor/contrib/stickyScroll/browser/stickyScrollContribution"
   },
   {
     "label": "suggest",

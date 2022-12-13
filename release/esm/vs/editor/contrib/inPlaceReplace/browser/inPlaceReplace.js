@@ -25,21 +25,20 @@ import * as nls from '../../../../nls.js';
 import { registerThemingParticipant } from '../../../../platform/theme/common/themeService.js';
 import { InPlaceReplaceCommand } from './inPlaceReplaceCommand.js';
 let InPlaceReplaceController = class InPlaceReplaceController {
+    static get(editor) {
+        return editor.getContribution(InPlaceReplaceController.ID);
+    }
     constructor(editor, editorWorkerService) {
         this.editor = editor;
         this.editorWorkerService = editorWorkerService;
         this.decorations = this.editor.createDecorationsCollection();
     }
-    static get(editor) {
-        return editor.getContribution(InPlaceReplaceController.ID);
-    }
     dispose() {
     }
     run(source, up) {
+        var _a;
         // cancel any pending request
-        if (this.currentRequest) {
-            this.currentRequest.cancel();
-        }
+        (_a = this.currentRequest) === null || _a === void 0 ? void 0 : _a.cancel();
         const editorSelection = this.editor.getSelection();
         const model = this.editor.getModel();
         if (!model || !editorSelection) {
@@ -57,6 +56,7 @@ let InPlaceReplaceController = class InPlaceReplaceController {
         }
         this.currentRequest = createCancelablePromise(token => this.editorWorkerService.navigateValueSet(modelURI, selection, up));
         return this.currentRequest.then(result => {
+            var _a;
             if (!result || !result.range || !result.value) {
                 // No proper result
                 return;
@@ -90,9 +90,7 @@ let InPlaceReplaceController = class InPlaceReplaceController {
                     options: InPlaceReplaceController.DECORATION
                 }]);
             // remove decoration after delay
-            if (this.decorationRemover) {
-                this.decorationRemover.cancel();
-            }
+            (_a = this.decorationRemover) === null || _a === void 0 ? void 0 : _a.cancel();
             this.decorationRemover = timeout(350);
             this.decorationRemover.then(() => this.decorations.clear()).catch(onUnexpectedError);
         }).catch(onUnexpectedError);

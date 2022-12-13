@@ -214,11 +214,12 @@ let GotoDefinitionAtPositionEditorContribution = class GotoDefinitionAtPositionE
         this.linkDecorations.clear();
     }
     isEnabled(mouseEvent, withKey) {
-        return this.editor.hasModel() &&
-            mouseEvent.isNoneOrSingleMouseDown &&
-            (mouseEvent.target.type === 6 /* MouseTargetType.CONTENT_TEXT */) &&
-            (mouseEvent.hasTriggerModifier || (withKey ? withKey.keyCodeIsTriggerKey : false)) &&
-            this.languageFeaturesService.definitionProvider.has(this.editor.getModel());
+        return this.editor.hasModel()
+            && mouseEvent.isLeftClick
+            && mouseEvent.isNoneOrSingleMouseDown
+            && mouseEvent.target.type === 6 /* MouseTargetType.CONTENT_TEXT */
+            && (mouseEvent.hasTriggerModifier || (withKey ? withKey.keyCodeIsTriggerKey : false))
+            && this.languageFeaturesService.definitionProvider.has(this.editor.getModel());
     }
     findDefinition(position, token) {
         const model = this.editor.getModel();
@@ -231,7 +232,7 @@ let GotoDefinitionAtPositionEditorContribution = class GotoDefinitionAtPositionE
         this.editor.setPosition(position);
         return this.editor.invokeWithinContext((accessor) => {
             const canPeek = !openToSide && this.editor.getOption(79 /* EditorOption.definitionLinkOpensInPeek */) && !this.isInPeekEditor(accessor);
-            const action = new DefinitionAction({ openToSide, openInPeek: canPeek, muteMessage: true }, { alias: '', label: '', id: '', precondition: undefined });
+            const action = new DefinitionAction({ openToSide, openInPeek: canPeek, muteMessage: true }, { title: { value: '', original: '' }, id: '', precondition: undefined });
             return action.run(accessor, this.editor);
         });
     }

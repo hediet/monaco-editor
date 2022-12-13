@@ -26,6 +26,9 @@ import { registerThemingParticipant } from '../../../../platform/theme/common/th
 import { InspectTokensNLS } from '../../../common/standaloneStrings.js';
 import { isHighContrast } from '../../../../platform/theme/common/theme.js';
 let InspectTokensController = class InspectTokensController extends Disposable {
+    static get(editor) {
+        return editor.getContribution(InspectTokensController.ID);
+    }
     constructor(editor, standaloneColorService, languageService) {
         super();
         this._editor = editor;
@@ -35,9 +38,6 @@ let InspectTokensController = class InspectTokensController extends Disposable {
         this._register(this._editor.onDidChangeModelLanguage((e) => this.stop()));
         this._register(TokenizationRegistry.onDidChange((e) => this.stop()));
         this._register(this._editor.onKeyUp((e) => e.keyCode === 9 /* KeyCode.Escape */ && this.stop()));
-    }
-    static get(editor) {
-        return editor.getContribution(InspectTokensController.ID);
     }
     dispose() {
         this.stop();
@@ -75,9 +75,7 @@ class InspectTokens extends EditorAction {
     }
     run(accessor, editor) {
         const controller = InspectTokensController.get(editor);
-        if (controller) {
-            controller.launch();
-        }
+        controller === null || controller === void 0 ? void 0 : controller.launch();
     }
 }
 function renderTokenText(tokenText) {

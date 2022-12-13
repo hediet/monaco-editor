@@ -30,6 +30,9 @@ import { provideInlineCompletions, UpdateOperation } from './inlineCompletionsMo
 import { inlineCompletionToGhostText, minimizeInlineCompletion } from './inlineCompletionToGhostText.js';
 import { SuggestWidgetInlineCompletionProvider } from './suggestWidgetInlineCompletionProvider.js';
 let SuggestWidgetPreviewModel = class SuggestWidgetPreviewModel extends BaseGhostTextWidgetModel {
+    get isActive() {
+        return this.suggestionInlineCompletionSource.state !== undefined;
+    }
     constructor(editor, cache, languageFeaturesService) {
         super(editor);
         this.cache = cache;
@@ -72,11 +75,8 @@ let SuggestWidgetPreviewModel = class SuggestWidgetPreviewModel extends BaseGhos
         }));
         this._register(toDisposable(() => this.suggestionInlineCompletionSource.stopForceRenderingAbove()));
     }
-    get isActive() {
-        return this.suggestionInlineCompletionSource.state !== undefined;
-    }
     isSuggestionPreviewEnabled() {
-        const suggestOptions = this.editor.getOption(107 /* EditorOption.suggest */);
+        const suggestOptions = this.editor.getOption(108 /* EditorOption.suggest */);
         return suggestOptions.preview;
     }
     updateCache() {
@@ -145,7 +145,7 @@ let SuggestWidgetPreviewModel = class SuggestWidgetPreviewModel extends BaseGhos
         return newGhostText;
     }
     toGhostText(completion, inlineCompletionPreviewLength) {
-        const mode = this.editor.getOptions().get(107 /* EditorOption.suggest */).previewMode;
+        const mode = this.editor.getOptions().get(108 /* EditorOption.suggest */).previewMode;
         return completion
             ? (inlineCompletionToGhostText(completion, this.editor.getModel(), mode, this.editor.getPosition(), inlineCompletionPreviewLength) ||
                 // Show an invisible ghost text to reserve space

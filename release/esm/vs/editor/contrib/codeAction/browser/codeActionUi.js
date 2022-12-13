@@ -32,39 +32,40 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
 var _CodeActionUi_disposed;
+import { getDomNodePagePosition } from '../../../../base/browser/dom.js';
 import { onUnexpectedError } from '../../../../base/common/errors.js';
 import { Lazy } from '../../../../base/common/lazy.js';
 import { Disposable, MutableDisposable } from '../../../../base/common/lifecycle.js';
+import { Position } from '../../../common/core/position.js';
 import { MessageController } from '../../message/browser/messageController.js';
+import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
+import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
-import { CodeActionMenu } from './codeActionMenu.js';
+import { CodeActionWidget } from './codeActionWidget.js';
 import { LightBulbWidget } from './lightBulbWidget.js';
 let CodeActionUi = class CodeActionUi extends Disposable {
-    constructor(_editor, quickFixActionId, preferredFixActionId, delegate, instantiationService) {
+    constructor(_editor, quickFixActionId, preferredFixActionId, delegate, _configurationService, _contextKeyService, _instantiationService) {
         super();
         this._editor = _editor;
         this.delegate = delegate;
+        this._configurationService = _configurationService;
+        this._contextKeyService = _contextKeyService;
+        this._instantiationService = _instantiationService;
         this._activeCodeActions = this._register(new MutableDisposable());
         _CodeActionUi_disposed.set(this, false);
-        this._codeActionWidget = new Lazy(() => {
-            return this._register(instantiationService.createInstance(CodeActionMenu, this._editor, {
-                onSelectCodeAction: (action, trigger) => __awaiter(this, void 0, void 0, function* () {
-                    this.delegate.applyCodeAction(action, /* retrigger */ true, Boolean(trigger.preview));
-                })
-            }));
-        });
         this._lightBulbWidget = new Lazy(() => {
-            const widget = this._register(instantiationService.createInstance(LightBulbWidget, this._editor, quickFixActionId, preferredFixActionId));
-            this._register(widget.onClick(e => this.showCodeActionList(e.trigger, e.actions, e, { includeDisabledActions: false, fromLightbulb: true })));
+            const widget = this._register(_instantiationService.createInstance(LightBulbWidget, this._editor, quickFixActionId, preferredFixActionId));
+            this._register(widget.onClick(e => this.showCodeActionList(e.trigger, e.actions, e, { includeDisabledActions: false, fromLightbulb: true, showHeaders: this.shouldShowHeaders() })));
             return widget;
         });
+        this._register(this._editor.onDidLayoutChange(() => { var _a; return (_a = CodeActionWidget.INSTANCE) === null || _a === void 0 ? void 0 : _a.hide(); }));
     }
     dispose() {
         __classPrivateFieldSet(this, _CodeActionUi_disposed, true, "f");
         super.dispose();
     }
     update(newState) {
-        var _a, _b, _c, _d, _e;
+        var _a, _b, _c, _d, _e, _f;
         return __awaiter(this, void 0, void 0, function* () {
             if (newState.type !== 1 /* CodeActionsState.Type.Triggered */) {
                 (_a = this._lightBulbWidget.rawValue) === null || _a === void 0 ? void 0 : _a.hide();
@@ -116,11 +117,11 @@ let CodeActionUi = class CodeActionUi extends Disposable {
                     }
                 }
                 this._activeCodeActions.value = actions;
-                this._codeActionWidget.getValue().show(newState.trigger, actions, newState.position, { includeDisabledActions, fromLightbulb: false });
+                this.showCodeActionList(newState.trigger, actions, this.toCoords(newState.position), { includeDisabledActions, fromLightbulb: false, showHeaders: this.shouldShowHeaders() });
             }
             else {
                 // auto magically triggered
-                if (this._codeActionWidget.getValue().isVisible) {
+                if ((_f = CodeActionWidget.INSTANCE) === null || _f === void 0 ? void 0 : _f.isVisible) {
                     // TODO: Figure out if we should update the showing menu?
                     actions.dispose();
                 }
@@ -152,12 +153,45 @@ let CodeActionUi = class CodeActionUi extends Disposable {
     }
     showCodeActionList(trigger, actions, at, options) {
         return __awaiter(this, void 0, void 0, function* () {
-            this._codeActionWidget.getValue().show(trigger, actions, at, options);
+            const editorDom = this._editor.getDomNode();
+            if (!editorDom) {
+                return;
+            }
+            const anchor = Position.isIPosition(at) ? this.toCoords(at) : at;
+            CodeActionWidget.getOrCreateInstance(this._instantiationService).show(trigger, actions, anchor, editorDom, Object.assign(Object.assign({}, options), { showHeaders: this.shouldShowHeaders() }), {
+                onSelectCodeAction: (action, trigger, options) => __awaiter(this, void 0, void 0, function* () {
+                    this.delegate.applyCodeAction(action, /* retrigger */ true, Boolean(options.preview || trigger.preview));
+                }),
+                onHide: () => {
+                    var _a;
+                    (_a = this._editor) === null || _a === void 0 ? void 0 : _a.focus();
+                },
+            }, this._contextKeyService);
         });
+    }
+    toCoords(position) {
+        if (!this._editor.hasModel()) {
+            return { x: 0, y: 0 };
+        }
+        this._editor.revealPosition(position, 1 /* ScrollType.Immediate */);
+        this._editor.render();
+        // Translate to absolute editor position
+        const cursorCoords = this._editor.getScrolledVisiblePosition(position);
+        const editorCoords = getDomNodePagePosition(this._editor.getDomNode());
+        const x = editorCoords.left + cursorCoords.left;
+        const y = editorCoords.top + cursorCoords.top + cursorCoords.height;
+        return { x, y };
+    }
+    shouldShowHeaders() {
+        var _a;
+        const model = (_a = this._editor) === null || _a === void 0 ? void 0 : _a.getModel();
+        return this._configurationService.getValue('editor.codeActionWidget.showHeaders', { resource: model === null || model === void 0 ? void 0 : model.uri });
     }
 };
 _CodeActionUi_disposed = new WeakMap();
 CodeActionUi = __decorate([
-    __param(4, IInstantiationService)
+    __param(4, IConfigurationService),
+    __param(5, IContextKeyService),
+    __param(6, IInstantiationService)
 ], CodeActionUi);
 export { CodeActionUi };

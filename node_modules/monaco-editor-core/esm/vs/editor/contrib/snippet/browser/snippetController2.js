@@ -15,7 +15,6 @@ import { DisposableStore } from '../../../../base/common/lifecycle.js';
 import { assertType } from '../../../../base/common/types.js';
 import { EditorCommand, registerEditorCommand, registerEditorContribution } from '../../../browser/editorExtensions.js';
 import { Position } from '../../../common/core/position.js';
-import { Selection } from '../../../common/core/selection.js';
 import { EditorContextKeys } from '../../../common/editorContextKeys.js';
 import { ILanguageConfigurationService } from '../../../common/languages/languageConfigurationRegistry.js';
 import { ILanguageFeaturesService } from '../../../common/services/languageFeatures.js';
@@ -34,6 +33,9 @@ const _defaultOptions = {
     overtypingCapturer: undefined
 };
 let SnippetController2 = class SnippetController2 {
+    static get(editor) {
+        return editor.getContribution(SnippetController2.ID);
+    }
     constructor(_editor, _logService, _languageFeaturesService, contextKeyService, _languageConfigurationService) {
         this._editor = _editor;
         this._logService = _logService;
@@ -45,9 +47,6 @@ let SnippetController2 = class SnippetController2 {
         this._hasNextTabstop = SnippetController2.HasNextTabstop.bindTo(contextKeyService);
         this._hasPrevTabstop = SnippetController2.HasPrevTabstop.bindTo(contextKeyService);
     }
-    static get(editor) {
-        return editor.getContribution(SnippetController2.ID);
-    }
     dispose() {
         var _a;
         this._inSnippet.reset();
@@ -55,18 +54,6 @@ let SnippetController2 = class SnippetController2 {
         this._hasNextTabstop.reset();
         (_a = this._session) === null || _a === void 0 ? void 0 : _a.dispose();
         this._snippetListener.dispose();
-    }
-    apply(edits, opts) {
-        try {
-            this._doInsert(edits, typeof opts === 'undefined' ? _defaultOptions : Object.assign(Object.assign({}, _defaultOptions), opts));
-        }
-        catch (e) {
-            this.cancel();
-            this._logService.error(e);
-            this._logService.error('snippet_error');
-            this._logService.error('insert_edits=', edits);
-            this._logService.error('existing_template=', this._session ? this._session._logInfo() : '<no_session>');
-        }
     }
     insert(template, opts) {
         // this is here to find out more about the yet-not-understood
@@ -216,15 +203,13 @@ let SnippetController2 = class SnippetController2 {
         }
     }
     prev() {
-        if (this._session) {
-            this._session.prev();
-        }
+        var _a;
+        (_a = this._session) === null || _a === void 0 ? void 0 : _a.prev();
         this._updateState();
     }
     next() {
-        if (this._session) {
-            this._session.next();
-        }
+        var _a;
+        (_a = this._session) === null || _a === void 0 ? void 0 : _a.next();
         this._updateState();
     }
     isInSnippet() {
@@ -285,18 +270,3 @@ registerEditorCommand(new CommandCtor({
     // 	primary: KeyCode.Enter,
     // }
 }));
-// ---
-export function performSnippetEdit(editor, snippet, selections) {
-    const controller = SnippetController2.get(editor);
-    if (!controller) {
-        return false;
-    }
-    editor.focus();
-    controller.apply(selections.map(selection => {
-        return {
-            range: Selection.liftSelection(selection),
-            template: snippet
-        };
-    }));
-    return controller.isInSnippet();
-}

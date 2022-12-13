@@ -72,6 +72,10 @@ export var Schemas;
      * Scheme used vs live share
      */
     Schemas.vsls = 'vsls';
+    /**
+     * Scheme used for the Source Control commit input's text document
+     */
+    Schemas.vscodeSourceControl = 'vscode-scm';
 })(Schemas || (Schemas = {}));
 export const connectionTokenQueryName = 'tkn';
 class RemoteAuthoritiesImpl {
@@ -92,7 +96,7 @@ class RemoteAuthoritiesImpl {
         }
         const authority = uri.authority;
         let host = this._hosts[authority];
-        if (host && host.indexOf(':') !== -1) {
+        if (host && host.indexOf(':') !== -1 && host.indexOf('[') === -1) {
             host = `[${host}]`;
         }
         const port = this._ports[authority];
@@ -148,3 +152,52 @@ class FileAccessImpl {
 }
 FileAccessImpl.FALLBACK_AUTHORITY = 'vscode-app';
 export const FileAccess = new FileAccessImpl();
+export var COI;
+(function (COI) {
+    const coiHeaders = new Map([
+        ['1', { 'Cross-Origin-Opener-Policy': 'same-origin' }],
+        ['2', { 'Cross-Origin-Embedder-Policy': 'require-corp' }],
+        ['3', { 'Cross-Origin-Opener-Policy': 'same-origin', 'Cross-Origin-Embedder-Policy': 'require-corp' }],
+    ]);
+    COI.CoopAndCoep = Object.freeze(coiHeaders.get('3'));
+    const coiSearchParamName = 'vscode-coi';
+    /**
+     * Extract desired headers from `vscode-coi` invocation
+     */
+    function getHeadersFromQuery(url) {
+        let params;
+        if (typeof url === 'string') {
+            params = new URL(url).searchParams;
+        }
+        else if (url instanceof URL) {
+            params = url.searchParams;
+        }
+        else if (URI.isUri(url)) {
+            params = new URL(url.toString(true)).searchParams;
+        }
+        const value = params === null || params === void 0 ? void 0 : params.get(coiSearchParamName);
+        if (!value) {
+            return undefined;
+        }
+        return coiHeaders.get(value);
+    }
+    COI.getHeadersFromQuery = getHeadersFromQuery;
+    /**
+     * Add the `vscode-coi` query attribute based on wanting `COOP` and `COEP`. Will be a noop when `crossOriginIsolated`
+     * isn't enabled the current context
+     */
+    function addSearchParam(urlOrSearch, coop, coep) {
+        if (!globalThis.crossOriginIsolated) {
+            // depends on the current context being COI
+            return;
+        }
+        const value = coop && coep ? '3' : coep ? '2' : '1';
+        if (urlOrSearch instanceof URLSearchParams) {
+            urlOrSearch.set(coiSearchParamName, value);
+        }
+        else {
+            urlOrSearch[coiSearchParamName] = value;
+        }
+    }
+    COI.addSearchParam = addSearchParam;
+})(COI || (COI = {}));

@@ -63,6 +63,9 @@ class ContiguousGrowingArray {
  * as needing to be tokenized.
  */
 export class TokenizationStateStore {
+    get invalidLineStartIndex() {
+        return this._firstLineNeedsTokenization;
+    }
     constructor(tokenizationSupport, initialState) {
         this.tokenizationSupport = tokenizationSupport;
         this.initialState = initialState;
@@ -76,9 +79,6 @@ export class TokenizationStateStore {
         this._lineNeedsTokenization = new ContiguousGrowingArray(true);
         this._firstLineNeedsTokenization = 0;
         this._lineBeginState.set(0, this.initialState);
-    }
-    get invalidLineStartIndex() {
-        return this._firstLineNeedsTokenization;
     }
     markMustBeTokenized(lineIndex) {
         this._lineNeedsTokenization.set(lineIndex, true);
@@ -364,12 +364,12 @@ export class TextModelTokenization extends Disposable {
                 continue;
             }
             if (newNonWhitespaceIndex < nonWhitespaceColumn) {
+                fakeLines.push(this._textModel.getLineContent(i));
+                nonWhitespaceColumn = newNonWhitespaceIndex;
                 initialState = this._tokenizationStateStore.getBeginState(i - 1);
                 if (initialState) {
                     break;
                 }
-                fakeLines.push(this._textModel.getLineContent(i));
-                nonWhitespaceColumn = newNonWhitespaceIndex;
             }
         }
         if (!initialState) {

@@ -30,11 +30,11 @@ import * as dom from '../../../base/browser/dom.js';
 import { StandardKeyboardEvent } from '../../../base/browser/keyboardEvent.js';
 import { Emitter } from '../../../base/common/event.js';
 import { SimpleKeybinding, createKeybinding } from '../../../base/common/keybindings.js';
-import { ImmortalReference, toDisposable, DisposableStore, Disposable } from '../../../base/common/lifecycle.js';
+import { ImmortalReference, toDisposable, DisposableStore, Disposable, combinedDisposable } from '../../../base/common/lifecycle.js';
 import { OS, isLinux, isMacintosh } from '../../../base/common/platform.js';
 import Severity from '../../../base/common/severity.js';
 import { URI } from '../../../base/common/uri.js';
-import { IBulkEditService, ResourceTextEdit } from '../../browser/services/bulkEditService.js';
+import { IBulkEditService, ResourceEdit, ResourceTextEdit } from '../../browser/services/bulkEditService.js';
 import { isDiffEditorConfigurationKey, isEditorConfigurationKey } from '../../common/config/editorConfigurationSchema.js';
 import { EditOperation } from '../../common/core/editOperation.js';
 import { Position as Pos } from '../../common/core/position.js';
@@ -288,33 +288,40 @@ let StandaloneKeybindingService = class StandaloneKeybindingService extends Abst
         this._register(codeEditorService.onDiffEditorRemove(removeDiffEditor));
         codeEditorService.listDiffEditors().forEach(addDiffEditor);
     }
-    addDynamicKeybinding(commandId, _keybinding, handler, when) {
-        const keybinding = createKeybinding(_keybinding, OS);
-        const toDispose = new DisposableStore();
-        if (keybinding) {
-            this._dynamicKeybindings.push({
-                keybinding: keybinding.parts,
-                command: commandId,
-                when: when,
+    addDynamicKeybinding(command, keybinding, handler, when) {
+        return combinedDisposable(CommandsRegistry.registerCommand(command, handler), this.addDynamicKeybindings([{
+                keybinding,
+                command,
+                when
+            }]));
+    }
+    addDynamicKeybindings(rules) {
+        const entries = rules.map((rule) => {
+            var _a, _b;
+            const keybinding = createKeybinding(rule.keybinding, OS);
+            return {
+                keybinding: (_a = keybinding === null || keybinding === void 0 ? void 0 : keybinding.parts) !== null && _a !== void 0 ? _a : null,
+                command: (_b = rule.command) !== null && _b !== void 0 ? _b : null,
+                commandArgs: rule.commandArgs,
+                when: rule.when,
                 weight1: 1000,
                 weight2: 0,
                 extensionId: null,
                 isBuiltinExtension: false
-            });
-            toDispose.add(toDisposable(() => {
-                for (let i = 0; i < this._dynamicKeybindings.length; i++) {
-                    const kb = this._dynamicKeybindings[i];
-                    if (kb.command === commandId) {
-                        this._dynamicKeybindings.splice(i, 1);
-                        this.updateResolver();
-                        return;
-                    }
-                }
-            }));
-        }
-        toDispose.add(CommandsRegistry.registerCommand(commandId, handler));
+            };
+        });
+        this._dynamicKeybindings = this._dynamicKeybindings.concat(entries);
         this.updateResolver();
-        return toDispose;
+        return toDisposable(() => {
+            // Search the first entry and remove them all since they will be contiguous
+            for (let i = 0; i < this._dynamicKeybindings.length; i++) {
+                if (this._dynamicKeybindings[i] === entries[0]) {
+                    this._dynamicKeybindings.splice(i, entries.length);
+                    this.updateResolver();
+                    return;
+                }
+            }
+        });
     }
     updateResolver() {
         this._cachedResolver = null;
@@ -401,7 +408,7 @@ export class StandaloneConfigurationService {
         }
         if (changedKeys.length > 0) {
             const configurationChangeEvent = new ConfigurationChangeEvent({ keys: changedKeys, overrides: [] }, previous, this._configuration);
-            configurationChangeEvent.source = 7 /* ConfigurationTarget.MEMORY */;
+            configurationChangeEvent.source = 8 /* ConfigurationTarget.MEMORY */;
             configurationChangeEvent.sourceConfig = null;
             this._onDidChangeConfiguration.fire(configurationChangeEvent);
         }
@@ -498,8 +505,9 @@ let StandaloneBulkEditService = class StandaloneBulkEditService {
     hasPreviewHandler() {
         return false;
     }
-    apply(edits, _options) {
+    apply(editsIn, _options) {
         return __awaiter(this, void 0, void 0, function* () {
+            const edits = Array.isArray(editsIn) ? editsIn : ResourceEdit.convert(editsIn);
             const textEdits = new Map();
             for (const edit of edits) {
                 if (!(edit instanceof ResourceTextEdit)) {
@@ -529,7 +537,8 @@ let StandaloneBulkEditService = class StandaloneBulkEditService {
                 totalEdits += edits.length;
             }
             return {
-                ariaSummary: strings.format(StandaloneServicesNLS.bulkEditServiceSummary, totalEdits, totalFiles)
+                ariaSummary: strings.format(StandaloneServicesNLS.bulkEditServiceSummary, totalEdits, totalFiles),
+                isApplied: totalEdits > 0
             };
         });
     }
@@ -587,8 +596,8 @@ class StandaloneLogService extends LogService {
     }
 }
 let StandaloneContextMenuService = class StandaloneContextMenuService extends ContextMenuService {
-    constructor(telemetryService, notificationService, contextViewService, keybindingService, themeService) {
-        super(telemetryService, notificationService, contextViewService, keybindingService, themeService);
+    constructor(telemetryService, notificationService, contextViewService, keybindingService, themeService, menuService, contextKeyService) {
+        super(telemetryService, notificationService, contextViewService, keybindingService, themeService, menuService, contextKeyService);
         this.configure({ blockMouse: false }); // we do not want that in the standalone editor
     }
 };
@@ -597,40 +606,42 @@ StandaloneContextMenuService = __decorate([
     __param(1, INotificationService),
     __param(2, IContextViewService),
     __param(3, IKeybindingService),
-    __param(4, IThemeService)
+    __param(4, IThemeService),
+    __param(5, IMenuService),
+    __param(6, IContextKeyService)
 ], StandaloneContextMenuService);
-registerSingleton(IConfigurationService, StandaloneConfigurationService);
-registerSingleton(ITextResourceConfigurationService, StandaloneResourceConfigurationService);
-registerSingleton(ITextResourcePropertiesService, StandaloneResourcePropertiesService);
-registerSingleton(IWorkspaceContextService, StandaloneWorkspaceContextService);
-registerSingleton(ILabelService, StandaloneUriLabelService);
-registerSingleton(ITelemetryService, StandaloneTelemetryService);
-registerSingleton(IDialogService, StandaloneDialogService);
-registerSingleton(INotificationService, StandaloneNotificationService);
-registerSingleton(IMarkerService, MarkerService);
-registerSingleton(ILanguageService, StandaloneLanguageService);
-registerSingleton(IStandaloneThemeService, StandaloneThemeService);
-registerSingleton(ILogService, StandaloneLogService);
-registerSingleton(IModelService, ModelService);
-registerSingleton(IMarkerDecorationsService, MarkerDecorationsService);
-registerSingleton(IContextKeyService, ContextKeyService);
-registerSingleton(IProgressService, StandaloneProgressService);
-registerSingleton(IEditorProgressService, StandaloneEditorProgressService);
-registerSingleton(IStorageService, InMemoryStorageService);
-registerSingleton(IEditorWorkerService, EditorWorkerService);
-registerSingleton(IBulkEditService, StandaloneBulkEditService);
-registerSingleton(IWorkspaceTrustManagementService, StandaloneWorkspaceTrustManagementService);
-registerSingleton(ITextModelService, StandaloneTextModelService);
-registerSingleton(IAccessibilityService, AccessibilityService);
-registerSingleton(IListService, ListService);
-registerSingleton(ICommandService, StandaloneCommandService);
-registerSingleton(IKeybindingService, StandaloneKeybindingService);
-registerSingleton(IQuickInputService, StandaloneQuickInputService);
-registerSingleton(IContextViewService, StandaloneContextViewService);
-registerSingleton(IOpenerService, OpenerService);
-registerSingleton(IClipboardService, BrowserClipboardService);
-registerSingleton(IContextMenuService, StandaloneContextMenuService);
-registerSingleton(IMenuService, MenuService);
+registerSingleton(IConfigurationService, StandaloneConfigurationService, false);
+registerSingleton(ITextResourceConfigurationService, StandaloneResourceConfigurationService, false);
+registerSingleton(ITextResourcePropertiesService, StandaloneResourcePropertiesService, false);
+registerSingleton(IWorkspaceContextService, StandaloneWorkspaceContextService, false);
+registerSingleton(ILabelService, StandaloneUriLabelService, false);
+registerSingleton(ITelemetryService, StandaloneTelemetryService, false);
+registerSingleton(IDialogService, StandaloneDialogService, false);
+registerSingleton(INotificationService, StandaloneNotificationService, false);
+registerSingleton(IMarkerService, MarkerService, false);
+registerSingleton(ILanguageService, StandaloneLanguageService, false);
+registerSingleton(IStandaloneThemeService, StandaloneThemeService, false);
+registerSingleton(ILogService, StandaloneLogService, false);
+registerSingleton(IModelService, ModelService, false);
+registerSingleton(IMarkerDecorationsService, MarkerDecorationsService, false);
+registerSingleton(IContextKeyService, ContextKeyService, false);
+registerSingleton(IProgressService, StandaloneProgressService, false);
+registerSingleton(IEditorProgressService, StandaloneEditorProgressService, false);
+registerSingleton(IStorageService, InMemoryStorageService, false);
+registerSingleton(IEditorWorkerService, EditorWorkerService, false);
+registerSingleton(IBulkEditService, StandaloneBulkEditService, false);
+registerSingleton(IWorkspaceTrustManagementService, StandaloneWorkspaceTrustManagementService, false);
+registerSingleton(ITextModelService, StandaloneTextModelService, false);
+registerSingleton(IAccessibilityService, AccessibilityService, false);
+registerSingleton(IListService, ListService, false);
+registerSingleton(ICommandService, StandaloneCommandService, false);
+registerSingleton(IKeybindingService, StandaloneKeybindingService, false);
+registerSingleton(IQuickInputService, StandaloneQuickInputService, false);
+registerSingleton(IContextViewService, StandaloneContextViewService, false);
+registerSingleton(IOpenerService, OpenerService, false);
+registerSingleton(IClipboardService, BrowserClipboardService, false);
+registerSingleton(IContextMenuService, StandaloneContextMenuService, false);
+registerSingleton(IMenuService, MenuService, false);
 /**
  * We don't want to eagerly instantiate services because embedders get a one time chance
  * to override services when they create the first editor.

@@ -49,7 +49,7 @@ registerSingleton(IPeekViewService, class {
         };
         this._widgets.set(editor, { widget, listener: widget.onDidClose(remove) });
     }
-});
+}, 1 /* InstantiationType.Delayed */);
 export var PeekContext;
 (function (PeekContext) {
     PeekContext.inPeekEditor = new RawContextKey('inReferenceSearchEditor', true, nls.localize('inReferenceSearchEditor', "Whether the current code editor is embedded inside peek"));

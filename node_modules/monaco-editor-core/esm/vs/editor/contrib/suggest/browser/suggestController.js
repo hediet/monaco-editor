@@ -48,7 +48,6 @@ import { basename, extname } from '../../../../base/common/resources.js';
 import { hash } from '../../../../base/common/hash.js';
 // sticky suggest widget which doesn't disappear on focus out and such
 const _sticky = false;
-// _sticky = Boolean("true"); // done "weirdly" so that a lint warning prevents you from pushing this
 class LineSuffix {
     constructor(_model, _position) {
         this._model = _model;
@@ -89,6 +88,9 @@ class LineSuffix {
     }
 }
 let SuggestController = class SuggestController {
+    static get(editor) {
+        return editor.getContribution(SuggestController.ID);
+    }
     constructor(editor, _memoryService, _commandService, _contextKeyService, _instantiationService, _logService, _telemetryService) {
         this._memoryService = _memoryService;
         this._commandService = _commandService;
@@ -104,20 +106,15 @@ let SuggestController = class SuggestController {
         this.model = _instantiationService.createInstance(SuggestModel, this.editor);
         // context key: update insert/replace mode
         const ctxInsertMode = SuggestContext.InsertMode.bindTo(_contextKeyService);
-        ctxInsertMode.set(editor.getOption(107 /* EditorOption.suggest */).insertMode);
-        this.model.onDidTrigger(() => ctxInsertMode.set(editor.getOption(107 /* EditorOption.suggest */).insertMode));
+        ctxInsertMode.set(editor.getOption(108 /* EditorOption.suggest */).insertMode);
+        this.model.onDidTrigger(() => ctxInsertMode.set(editor.getOption(108 /* EditorOption.suggest */).insertMode));
         this.widget = this._toDispose.add(new IdleValue(() => {
             const widget = this._instantiationService.createInstance(SuggestWidget, this.editor);
             this._toDispose.add(widget);
             this._toDispose.add(widget.onDidSelect(item => this._insertSuggestion(item, 0), this));
             // Wire up logic to accept a suggestion on certain characters
-            const commitCharacterController = new CommitCharacterController(this.editor, widget, item => this._insertSuggestion(item, 2 /* InsertFlags.NoAfterUndoStop */));
+            const commitCharacterController = new CommitCharacterController(this.editor, widget, this.model, item => this._insertSuggestion(item, 2 /* InsertFlags.NoAfterUndoStop */));
             this._toDispose.add(commitCharacterController);
-            this._toDispose.add(this.model.onDidSuggest(e => {
-                if (e.completionModel.items.length === 0) {
-                    commitCharacterController.reset();
-                }
-            }));
             // Wire up makes text edit context key
             const ctxMakesTextEdit = SuggestContext.MakesTextEdit.bindTo(this._contextKeyService);
             const ctxHasInsertAndReplace = SuggestContext.HasInsertAndReplaceRange.bindTo(this._contextKeyService);
@@ -214,9 +211,6 @@ let SuggestController = class SuggestController {
         };
         this._toDispose.add(this.editor.onDidChangeConfiguration(() => updateFromConfig()));
         updateFromConfig();
-    }
-    static get(editor) {
-        return editor.getContribution(SuggestController.ID);
     }
     dispose() {
         this._alternatives.dispose();
@@ -381,7 +375,7 @@ let SuggestController = class SuggestController {
     }
     getOverwriteInfo(item, toggleMode) {
         assertType(this.editor.hasModel());
-        let replace = this.editor.getOption(107 /* EditorOption.suggest */).insertMode === 'replace';
+        let replace = this.editor.getOption(108 /* EditorOption.suggest */).insertMode === 'replace';
         if (toggleMode) {
             replace = !replace;
         }

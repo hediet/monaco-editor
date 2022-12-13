@@ -16,13 +16,15 @@ import { StandardKeyboardEvent } from '../../keyboardEvent.js';
 import { ActionViewItem, BaseActionViewItem } from './actionViewItems.js';
 import { ActionRunner, Separator } from '../../../common/actions.js';
 import { Emitter } from '../../../common/event.js';
-import { Disposable, dispose } from '../../../common/lifecycle.js';
+import { Disposable, DisposableMap, DisposableStore, dispose } from '../../../common/lifecycle.js';
 import * as types from '../../../common/types.js';
 import './actionbar.css';
 export class ActionBar extends Disposable {
     constructor(container, options = {}) {
         var _a, _b, _c, _d, _e, _f;
         super();
+        this._actionRunnerDisposables = this._register(new DisposableStore());
+        this.viewItemDisposables = this._register(new DisposableMap());
         // Trigger Key Tracking
         this.triggerKeyDown = false;
         this.focusable = true;
@@ -33,8 +35,8 @@ export class ActionBar extends Disposable {
         this.cancelHasListener = false;
         this._onDidRun = this._register(new Emitter());
         this.onDidRun = this._onDidRun.event;
-        this._onBeforeRun = this._register(new Emitter());
-        this.onBeforeRun = this._onBeforeRun.event;
+        this._onWillRun = this._register(new Emitter());
+        this.onWillRun = this._onWillRun.event;
         this.options = options;
         this._context = (_a = options.context) !== null && _a !== void 0 ? _a : null;
         this._orientation = (_b = this.options.orientation) !== null && _b !== void 0 ? _b : 0 /* ActionsOrientation.HORIZONTAL */;
@@ -47,13 +49,11 @@ export class ActionBar extends Disposable {
         }
         else {
             this._actionRunner = new ActionRunner();
-            this._register(this._actionRunner);
+            this._actionRunnerDisposables.add(this._actionRunner);
         }
-        this._register(this._actionRunner.onDidRun(e => this._onDidRun.fire(e)));
-        this._register(this._actionRunner.onBeforeRun(e => this._onBeforeRun.fire(e)));
-        this._actionIds = [];
+        this._actionRunnerDisposables.add(this._actionRunner.onDidRun(e => this._onDidRun.fire(e)));
+        this._actionRunnerDisposables.add(this._actionRunner.onWillRun(e => this._onWillRun.fire(e)));
         this.viewItems = [];
-        this.viewItemDisposables = new Map();
         this.focusedItem = undefined;
         this.domNode = document.createElement('div');
         this.domNode.className = 'monaco-action-bar';
@@ -201,10 +201,13 @@ export class ActionBar extends Disposable {
         return this._actionRunner;
     }
     set actionRunner(actionRunner) {
-        if (actionRunner) {
-            this._actionRunner = actionRunner;
-            this.viewItems.forEach(item => item.actionRunner = actionRunner);
-        }
+        this._actionRunner = actionRunner;
+        // when setting a new `IActionRunner` make sure to dispose old listeners and
+        // start to forward events from the new listener
+        this._actionRunnerDisposables.clear();
+        this._actionRunnerDisposables.add(this._actionRunner.onDidRun(e => this._onDidRun.fire(e)));
+        this._actionRunnerDisposables.add(this._actionRunner.onWillRun(e => this._onWillRun.fire(e)));
+        this.viewItems.forEach(item => item.actionRunner = actionRunner);
     }
     getContainer() {
         return this.domNode;
@@ -239,12 +242,10 @@ export class ActionBar extends Disposable {
             if (index === null || index < 0 || index >= this.actionsList.children.length) {
                 this.actionsList.appendChild(actionViewItemElement);
                 this.viewItems.push(item);
-                this._actionIds.push(action.id);
             }
             else {
                 this.actionsList.insertBefore(actionViewItemElement, this.actionsList.children[index]);
                 this.viewItems.splice(index, 0, item);
-                this._actionIds.splice(index, 0, action.id);
                 index++;
             }
         });
@@ -255,11 +256,8 @@ export class ActionBar extends Disposable {
         this.refreshRole();
     }
     clear() {
-        dispose(this.viewItems);
-        this.viewItemDisposables.forEach(d => d.dispose());
-        this.viewItemDisposables.clear();
-        this.viewItems = [];
-        this._actionIds = [];
+        this.viewItems = dispose(this.viewItems);
+        this.viewItemDisposables.clearAndDisposeAll();
         DOM.clearNode(this.actionsList);
         this.refreshRole();
     }
@@ -389,9 +387,7 @@ export class ActionBar extends Disposable {
         });
     }
     dispose() {
-        dispose(this.viewItems);
-        this.viewItems = [];
-        this._actionIds = [];
+        this.viewItems = dispose(this.viewItems);
         this.getContainer().remove();
         super.dispose();
     }

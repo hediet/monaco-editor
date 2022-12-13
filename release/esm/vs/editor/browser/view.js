@@ -158,6 +158,9 @@ export class View extends ViewEventHandler {
                 const lastTextareaPosition = this._textAreaHandler.getLastRenderData();
                 return new PointerHandlerLastRenderData(lastViewCursorsRenderData, lastTextareaPosition);
             },
+            renderNow: () => {
+                this.render(true, false);
+            },
             shouldSuppressMouseDownOnViewZone: (viewZoneId) => {
                 return this._viewZones.shouldSuppressMouseDownOnViewZone(viewZoneId);
             },
@@ -188,7 +191,7 @@ export class View extends ViewEventHandler {
     }
     _applyLayout() {
         const options = this._context.configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         this.domNode.setWidth(layoutInfo.width);
         this.domNode.setHeight(layoutInfo.height);
         this._overflowGuardContainer.setWidth(layoutInfo.width);
@@ -198,7 +201,7 @@ export class View extends ViewEventHandler {
     }
     _getEditorClassName() {
         const focused = this._textAreaHandler.isFocused() ? ' focused' : '';
-        return this._context.configuration.options.get(129 /* EditorOption.editorClassName */) + ' ' + getThemeTypeSelector(this._context.theme.type) + focused;
+        return this._context.configuration.options.get(130 /* EditorOption.editorClassName */) + ' ' + getThemeTypeSelector(this._context.theme.type) + focused;
     }
     // --- begin event handlers
     handleEvents(events) {

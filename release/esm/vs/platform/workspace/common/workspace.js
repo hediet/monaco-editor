@@ -3,7 +3,8 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 import { localize } from '../../../nls.js';
-import { TernarySearchTree } from '../../../base/common/map.js';
+import { basename } from '../../../base/common/path.js';
+import { TernarySearchTree } from '../../../base/common/ternarySearchTree.js';
 import { URI } from '../../../base/common/uri.js';
 import { createDecorator } from '../../instantiation/common/instantiation.js';
 export const IWorkspaceContextService = createDecorator('contextService');
@@ -11,8 +12,26 @@ export function isSingleFolderWorkspaceIdentifier(obj) {
     const singleFolderIdentifier = obj;
     return typeof (singleFolderIdentifier === null || singleFolderIdentifier === void 0 ? void 0 : singleFolderIdentifier.id) === 'string' && URI.isUri(singleFolderIdentifier.uri);
 }
-export function toWorkspaceIdentifier(workspace) {
+export const EXTENSION_DEVELOPMENT_EMPTY_WINDOW_WORKSPACE = { id: 'ext-dev' };
+export function toWorkspaceIdentifier(arg0, isExtensionDevelopment) {
+    // Empty workspace
+    if (typeof arg0 === 'string' || typeof arg0 === 'undefined') {
+        // With a backupPath, the basename is the empty workspace identifier
+        if (typeof arg0 === 'string') {
+            return {
+                id: basename(arg0)
+            };
+        }
+        // Extension development empty windows have backups disabled
+        // so we return a constant workspace identifier for extension
+        // authors to allow to restore their workspace state even then.
+        if (isExtensionDevelopment) {
+            return EXTENSION_DEVELOPMENT_EMPTY_WINDOW_WORKSPACE;
+        }
+        return undefined;
+    }
     // Multi root
+    const workspace = arg0;
     if (workspace.configuration) {
         return {
             id: workspace.id,
@@ -26,7 +45,6 @@ export function toWorkspaceIdentifier(workspace) {
             uri: workspace.folders[0].uri
         };
     }
-    // Empty workspace
     return undefined;
 }
 export class Workspace {

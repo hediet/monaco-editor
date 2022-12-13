@@ -20,18 +20,16 @@ import { Range } from '../../../common/core/range.js';
 import * as nls from '../../../../nls.js';
 import { IContextKeyService, RawContextKey } from '../../../../platform/contextkey/common/contextkey.js';
 let MessageController = class MessageController {
+    static get(editor) {
+        return editor.getContribution(MessageController.ID);
+    }
     constructor(editor, contextKeyService) {
         this._messageWidget = new MutableDisposable();
         this._messageListeners = new DisposableStore();
         this._editor = editor;
         this._visible = MessageController.MESSAGE_VISIBLE.bindTo(contextKeyService);
-        this._editorListener = this._editor.onDidAttemptReadOnlyEdit(() => this._onDidAttemptReadOnlyEdit());
-    }
-    static get(editor) {
-        return editor.getContribution(MessageController.ID);
     }
     dispose() {
-        this._editorListener.dispose();
         this._messageListeners.dispose();
         this._messageWidget.dispose();
         this._visible.reset();
@@ -73,16 +71,6 @@ let MessageController = class MessageController {
             this._messageListeners.add(MessageWidget.fadeOut(this._messageWidget.value));
         }
     }
-    _onDidAttemptReadOnlyEdit() {
-        if (this._editor.hasModel()) {
-            if (this._editor.isSimpleWidget) {
-                this.showMessage(nls.localize('editor.simple.readonly', "Cannot edit in read-only input"), this._editor.getPosition());
-            }
-            else {
-                this.showMessage(nls.localize('editor.readonly', "Cannot edit in read-only editor"), this._editor.getPosition());
-            }
-        }
-    }
 };
 MessageController.ID = 'editor.contrib.messageController';
 MessageController.MESSAGE_VISIBLE = new RawContextKey('messageVisible', false, nls.localize('messageVisible', 'Whether the editor is currently showing an inline message'));
@@ -101,6 +89,17 @@ registerEditorCommand(new MessageCommand({
     }
 }));
 class MessageWidget {
+    static fadeOut(messageWidget) {
+        const dispose = () => {
+            messageWidget.dispose();
+            clearTimeout(handle);
+            messageWidget.getDomNode().removeEventListener('animationend', dispose);
+        };
+        const handle = setTimeout(dispose, 110);
+        messageWidget.getDomNode().addEventListener('animationend', dispose);
+        messageWidget.getDomNode().classList.add('fadeOut');
+        return { dispose };
+    }
     constructor(editor, { lineNumber, column }, text) {
         // Editor.IContentWidget.allowEditorOverflow
         this.allowEditorOverflow = true;
@@ -123,17 +122,6 @@ class MessageWidget {
         this._domNode.appendChild(anchorBottom);
         this._editor.addContentWidget(this);
         this._domNode.classList.add('fadeIn');
-    }
-    static fadeOut(messageWidget) {
-        const dispose = () => {
-            messageWidget.dispose();
-            clearTimeout(handle);
-            messageWidget.getDomNode().removeEventListener('animationend', dispose);
-        };
-        const handle = setTimeout(dispose, 110);
-        messageWidget.getDomNode().addEventListener('animationend', dispose);
-        messageWidget.getDomNode().classList.add('fadeOut');
-        return { dispose };
     }
     dispose() {
         this._editor.removeContentWidget(this);

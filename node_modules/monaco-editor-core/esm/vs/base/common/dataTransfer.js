@@ -11,8 +11,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+import { generateUuid } from './uuid.js';
 export function createStringDataTransferItem(stringOrPromise) {
     return {
+        id: generateUuid(),
         asString: () => __awaiter(this, void 0, void 0, function* () { return stringOrPromise; }),
         asFile: () => undefined,
         value: typeof stringOrPromise === 'string' ? stringOrPromise : undefined,
@@ -20,6 +22,7 @@ export function createStringDataTransferItem(stringOrPromise) {
 }
 export function createFileDataTransferItem(fileName, uri, data) {
     return {
+        id: generateUuid(),
         asString: () => __awaiter(this, void 0, void 0, function* () { return ''; }),
         asFile: () => ({ name: fileName, uri, data }),
         value: undefined,

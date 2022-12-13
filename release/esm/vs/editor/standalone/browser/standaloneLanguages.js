@@ -378,12 +378,13 @@ export function registerCodeActionProvider(languageSelector, provider, metadata)
     const languageFeaturesService = StandaloneServices.get(ILanguageFeaturesService);
     return languageFeaturesService.codeActionProvider.register(languageSelector, {
         providedCodeActionKinds: metadata === null || metadata === void 0 ? void 0 : metadata.providedCodeActionKinds,
+        documentation: metadata === null || metadata === void 0 ? void 0 : metadata.documentation,
         provideCodeActions: (model, range, context, token) => {
             const markerService = StandaloneServices.get(IMarkerService);
             const markers = markerService.read({ resource: model.uri }).filter(m => {
                 return Range.areIntersectingOrTouching(m, range);
             });
-            return provider.provideCodeActions(model, range, { markers, only: context.only }, token);
+            return provider.provideCodeActions(model, range, { markers, only: context.only, trigger: context.trigger }, token);
         },
         resolveCodeAction: provider.resolveCodeAction
     });
@@ -539,6 +540,7 @@ export function createMonacoLanguagesAPI() {
         SignatureHelpTriggerKind: standaloneEnums.SignatureHelpTriggerKind,
         InlayHintKind: standaloneEnums.InlayHintKind,
         InlineCompletionTriggerKind: standaloneEnums.InlineCompletionTriggerKind,
+        CodeActionTriggerType: standaloneEnums.CodeActionTriggerType,
         // classes
         FoldingRangeKind: languages.FoldingRangeKind,
     };

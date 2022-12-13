@@ -39,10 +39,10 @@ let UnusualLineTerminatorsDetector = class UnusualLineTerminatorsDetector extend
         this._editor = _editor;
         this._dialogService = _dialogService;
         this._codeEditorService = _codeEditorService;
-        this._config = this._editor.getOption(115 /* EditorOption.unusualLineTerminators */);
+        this._config = this._editor.getOption(116 /* EditorOption.unusualLineTerminators */);
         this._register(this._editor.onDidChangeConfiguration((e) => {
-            if (e.hasChanged(115 /* EditorOption.unusualLineTerminators */)) {
-                this._config = this._editor.getOption(115 /* EditorOption.unusualLineTerminators */);
+            if (e.hasChanged(116 /* EditorOption.unusualLineTerminators */)) {
+                this._config = this._editor.getOption(116 /* EditorOption.unusualLineTerminators */);
                 this._checkForUnusualLineTerminators();
             }
         }));

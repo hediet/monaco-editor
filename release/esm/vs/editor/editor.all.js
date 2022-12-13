@@ -40,6 +40,7 @@ import './contrib/links/browser/links.js';
 import './contrib/multicursor/browser/multicursor.js';
 import './contrib/parameterHints/browser/parameterHints.js';
 import './contrib/rename/browser/rename.js';
+import './contrib/stickyScroll/browser/stickyScrollContribution.js';
 import './contrib/smartSelect/browser/smartSelect.js';
 import './contrib/snippet/browser/snippetController2.js';
 import './contrib/suggest/browser/suggestController.js';
@@ -52,6 +53,7 @@ import './contrib/viewportSemanticTokens/browser/viewportSemanticTokens.js';
 import './contrib/wordHighlighter/browser/wordHighlighter.js';
 import './contrib/wordOperations/browser/wordOperations.js';
 import './contrib/wordPartOperations/browser/wordPartOperations.js';
+import './contrib/readOnlyMessage/browser/contribution.js';
 // Load up these strings even in VSCode, even if they are not used
 // in order to get them translated
 import './common/standaloneStrings.js';

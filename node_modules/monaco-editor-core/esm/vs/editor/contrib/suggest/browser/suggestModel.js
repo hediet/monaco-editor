@@ -38,16 +38,9 @@ import { ITelemetryService } from '../../../../platform/telemetry/common/telemet
 import { CompletionModel } from './completionModel.js';
 import { CompletionOptions, getSnippetSuggestSupport, getSuggestionComparator, provideSuggestionItems, QuickSuggestionsOptions } from './suggest.js';
 import { ILanguageFeaturesService } from '../../../common/services/languageFeatures.js';
+import { FuzzyScoreOptions } from '../../../../base/common/filters.js';
+import { assertType } from '../../../../base/common/types.js';
 export class LineContext {
-    constructor(model, position, auto, shy, noSelect) {
-        this.leadingLineContent = model.getLineContent(position.lineNumber).substr(0, position.column - 1);
-        this.leadingWord = model.getWordUntilPosition(position);
-        this.lineNumber = position.lineNumber;
-        this.column = position.column;
-        this.auto = auto;
-        this.shy = shy;
-        this.noSelect = noSelect;
-    }
     static shouldAutoTrigger(editor) {
         if (!editor.hasModel()) {
             return false;
@@ -67,9 +60,18 @@ export class LineContext {
         }
         return true;
     }
+    constructor(model, position, auto, shy, noSelect) {
+        this.leadingLineContent = model.getLineContent(position.lineNumber).substr(0, position.column - 1);
+        this.leadingWord = model.getWordUntilPosition(position);
+        this.lineNumber = position.lineNumber;
+        this.column = position.column;
+        this.auto = auto;
+        this.shy = shy;
+        this.noSelect = noSelect;
+    }
 }
 function isSuggestPreviewEnabled(editor) {
-    return editor.getOption(107 /* EditorOption.suggest */).preview;
+    return editor.getOption(108 /* EditorOption.suggest */).preview;
 }
 function canShowQuickSuggest(editor, contextKeyService, configurationService) {
     if (!Boolean(contextKeyService.getContextKeyValue('inlineSuggestionVisible'))) {
@@ -173,7 +175,7 @@ let SuggestModel = class SuggestModel {
         this._triggerCharacterListener.clear();
         if (this._editor.getOption(82 /* EditorOption.readOnly */)
             || !this._editor.hasModel()
-            || !this._editor.getOption(110 /* EditorOption.suggestOnTriggerCharacters */)) {
+            || !this._editor.getOption(111 /* EditorOption.suggestOnTriggerCharacters */)) {
             return;
         }
         const supportsByTriggerCharacter = new Map();
@@ -294,7 +296,7 @@ let SuggestModel = class SuggestModel {
             // not enabled
             return;
         }
-        if (this._editor.getOption(107 /* EditorOption.suggest */).snippetsPreventQuickSuggestions && ((_a = SnippetController2.get(this._editor)) === null || _a === void 0 ? void 0 : _a.isInSnippet())) {
+        if (this._editor.getOption(108 /* EditorOption.suggest */).snippetsPreventQuickSuggestions && ((_a = SnippetController2.get(this._editor)) === null || _a === void 0 ? void 0 : _a.isInSnippet())) {
             // no quick suggestion when in snippet mode
             return;
         }
@@ -337,23 +339,11 @@ let SuggestModel = class SuggestModel {
         }, this._editor.getOption(81 /* EditorOption.quickSuggestionsDelay */));
     }
     _refilterCompletionItems() {
-        // Re-filter suggestions. This MUST run async because filtering/scoring
-        // uses the model content AND the cursor position. The latter is NOT
-        // updated when the document has changed (the event which drives this method)
-        // and therefore a little pause (next mirco task) is needed. See:
-        // https://stackoverflow.com/questions/25915634/difference-between-microtask-and-macrotask-within-an-event-loop-context#25933985
-        Promise.resolve().then(() => {
-            if (this._state === 0 /* State.Idle */) {
-                return;
-            }
-            if (!this._editor.hasModel()) {
-                return;
-            }
-            const model = this._editor.getModel();
-            const position = this._editor.getPosition();
-            const ctx = new LineContext(model, position, this._state === 2 /* State.Auto */, false, false);
-            this._onNewContext(ctx);
-        });
+        assertType(this._editor.hasModel());
+        const model = this._editor.getModel();
+        const position = this._editor.getPosition();
+        const ctx = new LineContext(model, position, this._state === 2 /* State.Auto */, false, false);
+        this._onNewContext(ctx);
     }
     trigger(context, retrigger = false, onlyFrom, existing, noFilter) {
         var _a;
@@ -417,10 +407,11 @@ let SuggestModel = class SuggestModel {
                 items = items.concat(existing.items).sort(cmpFn);
             }
             const ctx = new LineContext(model, this._editor.getPosition(), auto, context.shy, context.noSelect);
+            const fuzzySearchOptions = Object.assign(Object.assign({}, FuzzyScoreOptions.default), { firstMatchCanBeWeak: !this._editor.getOption(108 /* EditorOption.suggest */).matchOnWordStartOnly });
             this._completionModel = new CompletionModel(items, this._context.column, {
                 leadingLineContent: ctx.leadingLineContent,
                 characterCountDelta: ctx.column - this._context.column
-            }, wordDistance, this._editor.getOption(107 /* EditorOption.suggest */), this._editor.getOption(102 /* EditorOption.snippetSuggestions */), undefined, clipboardText);
+            }, wordDistance, this._editor.getOption(108 /* EditorOption.suggest */), this._editor.getOption(102 /* EditorOption.snippetSuggestions */), fuzzySearchOptions, clipboardText);
             // store containers so that they can be disposed later
             this._completionDisposables.add(completions.disposable);
             this._onNewContext(ctx);
@@ -446,7 +437,7 @@ let SuggestModel = class SuggestModel {
             result.add(27 /* CompletionItemKind.Snippet */);
         }
         // type setting
-        const suggestOptions = editor.getOption(107 /* EditorOption.suggest */);
+        const suggestOptions = editor.getOption(108 /* EditorOption.suggest */);
         if (!suggestOptions.showMethods) {
             result.add(0 /* CompletionItemKind.Method */);
         }

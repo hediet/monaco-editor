@@ -314,6 +314,7 @@ class QuickPick extends QuickInput {
         this.selectedItemsToConfirm = [];
         this.onDidChangeSelectionEmitter = this._register(new Emitter());
         this.onDidTriggerItemButtonEmitter = this._register(new Emitter());
+        this.onDidTriggerSeparatorButtonEmitter = this._register(new Emitter());
         this.valueSelectionUpdated = true;
         this._ok = 'default';
         this._customButton = false;
@@ -324,6 +325,7 @@ class QuickPick extends QuickInput {
         this.onDidChangeActive = this.onDidChangeActiveEmitter.event;
         this.onDidChangeSelection = this.onDidChangeSelectionEmitter.event;
         this.onDidTriggerItemButton = this.onDidTriggerItemButtonEmitter.event;
+        this.onDidTriggerSeparatorButton = this.onDidTriggerSeparatorButtonEmitter.event;
     }
     get quickNavigate() {
         return this._quickNavigate;
@@ -650,6 +652,7 @@ class QuickPick extends QuickInput {
                 this.onDidChangeSelectionEmitter.fire(checkedItems);
             }));
             this.visibleDisposables.add(this.ui.list.onButtonTriggered(event => this.onDidTriggerItemButtonEmitter.fire(event)));
+            this.visibleDisposables.add(this.ui.list.onSeparatorButtonTriggered(event => this.onDidTriggerSeparatorButtonEmitter.fire(event)));
             this.visibleDisposables.add(this.registerQuickNavigation());
             this.valueSelectionUpdated = true;
         }
@@ -957,7 +960,9 @@ export class QuickInputController extends Disposable {
             switch (event.keyCode) {
                 case 3 /* KeyCode.Enter */:
                     dom.EventHelper.stop(e, true);
-                    this.onDidAcceptEmitter.fire();
+                    if (this.enabled) {
+                        this.onDidAcceptEmitter.fire();
+                    }
                     break;
                 case 9 /* KeyCode.Escape */:
                     dom.EventHelper.stop(e, true);
@@ -1086,6 +1091,7 @@ export class QuickInputController extends Disposable {
                             input.keepScrollPosition = keepScrollPositionBefore;
                         }
                     } }))),
+                input.onDidTriggerSeparatorButton(event => { var _a; return (_a = options.onDidTriggerSeparatorButton) === null || _a === void 0 ? void 0 : _a.call(options, event); }),
                 input.onDidChangeValue(value => {
                     if (activeItem && !value && (input.activeItems.length !== 1 || input.activeItems[0] !== activeItem)) {
                         input.activeItems = [activeItem];
@@ -1139,9 +1145,7 @@ export class QuickInputController extends Disposable {
         this.onShowEmitter.fire();
         const oldController = this.controller;
         this.controller = controller;
-        if (oldController) {
-            oldController.didHide();
-        }
+        oldController === null || oldController === void 0 ? void 0 : oldController.didHide();
         this.setEnabled(true);
         ui.leftActionBar.clear();
         ui.title.textContent = '';
@@ -1185,7 +1189,7 @@ export class QuickInputController extends Disposable {
         ui.message.style.display = visibilities.message ? '' : 'none';
         ui.progressBar.getContainer().style.display = visibilities.progressBar ? '' : 'none';
         ui.list.display(!!visibilities.list);
-        ui.container.classList[visibilities.checkBox ? 'add' : 'remove']('show-checkboxes');
+        ui.container.classList.toggle('show-checkboxes', visibilities.checkBox);
         this.updateLayout(); // TODO
     }
     setComboboxAccessibility(enabled) {
@@ -1210,15 +1214,18 @@ export class QuickInputController extends Disposable {
         if (enabled !== this.enabled) {
             this.enabled = enabled;
             for (const item of this.getUI().leftActionBar.viewItems) {
-                item.getAction().enabled = enabled;
+                item.action.enabled = enabled;
             }
             for (const item of this.getUI().rightActionBar.viewItems) {
-                item.getAction().enabled = enabled;
+                item.action.enabled = enabled;
             }
             this.getUI().checkAll.disabled = !enabled;
-            // this.getUI().inputBox.enabled = enabled; Avoid loosing focus.
+            this.getUI().inputBox.enabled = enabled;
             this.getUI().ok.enabled = enabled;
             this.getUI().list.enabled = enabled;
+            if (!enabled) {
+                this.getUI().container.focus();
+            }
         }
     }
     hide(reason) {
@@ -1285,6 +1292,9 @@ export class QuickInputController extends Disposable {
             }
             if (this.styles.list.pickerGroupForeground) {
                 content.push(`.quick-input-list .quick-input-list-separator { color:  ${this.styles.list.pickerGroupForeground}; }`);
+            }
+            if (this.styles.list.pickerGroupForeground) {
+                content.push(`.quick-input-list .quick-input-list-separator-as-item { color:  ${this.styles.list.pickerGroupForeground}; }`);
             }
             if (this.styles.keybindingLabel.keybindingLabelBackground ||
                 this.styles.keybindingLabel.keybindingLabelBorder ||

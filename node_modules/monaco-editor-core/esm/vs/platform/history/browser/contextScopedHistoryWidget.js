@@ -63,8 +63,8 @@ export function registerAndCreateHistoryNavigationContext(contextKeyService, wid
     };
 }
 let ContextScopedFindInput = class ContextScopedFindInput extends FindInput {
-    constructor(container, contextViewProvider, options, contextKeyService, showFindOptions = false) {
-        super(container, contextViewProvider, showFindOptions, options);
+    constructor(container, contextViewProvider, options, contextKeyService) {
+        super(container, contextViewProvider, options);
         this._register(registerAndCreateHistoryNavigationContext(contextKeyService, this.inputBox));
     }
 };
@@ -89,9 +89,7 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
     primary: 16 /* KeyCode.UpArrow */,
     secondary: [512 /* KeyMod.Alt */ | 16 /* KeyCode.UpArrow */],
     handler: (accessor) => {
-        if (lastFocusedWidget) {
-            lastFocusedWidget.showPreviousValue();
-        }
+        lastFocusedWidget === null || lastFocusedWidget === void 0 ? void 0 : lastFocusedWidget.showPreviousValue();
     }
 });
 KeybindingsRegistry.registerCommandAndKeybindingRule({
@@ -101,8 +99,6 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
     primary: 18 /* KeyCode.DownArrow */,
     secondary: [512 /* KeyMod.Alt */ | 18 /* KeyCode.DownArrow */],
     handler: (accessor) => {
-        if (lastFocusedWidget) {
-            lastFocusedWidget.showNextValue();
-        }
+        lastFocusedWidget === null || lastFocusedWidget === void 0 ? void 0 : lastFocusedWidget.showNextValue();
     }
 });

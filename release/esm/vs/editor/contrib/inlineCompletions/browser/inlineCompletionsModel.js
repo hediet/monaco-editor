@@ -39,7 +39,7 @@ import { ILanguageFeaturesService } from '../../../common/services/languageFeatu
 import { ILanguageFeatureDebounceService } from '../../../common/services/languageFeatureDebounce.js';
 import { SnippetParser } from '../../snippet/browser/snippetParser.js';
 import { SnippetController2 } from '../../snippet/browser/snippetController2.js';
-import { assertNever } from '../../../../base/common/types.js';
+import { assertNever } from '../../../../base/common/assert.js';
 import { matchesSubString } from '../../../../base/common/filters.js';
 import { getReadonlyEmptyArray } from './utils.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
@@ -434,6 +434,7 @@ export class InlineCompletionsSession extends BaseGhostTextWidgetModel {
         // Mark the cache as stale, but don't dispose it yet,
         // otherwise command args might get disposed.
         const cache = this.cache.clearAndLeak();
+        this.editor.pushUndoStop();
         if (completion.snippetInfo) {
             this.editor.executeEdits('inlineSuggestion.accept', [
                 EditOperation.replaceMove(completion.range, ''),
@@ -577,7 +578,7 @@ export function provideInlineCompletions(registry, position, model, context, tok
                 continue;
             }
             for (const item of completions.items) {
-                const range = item.range ? Range.lift(item.range) : defaultReplaceRange;
+                let range = item.range ? Range.lift(item.range) : defaultReplaceRange;
                 if (range.startLineNumber !== range.endLineNumber) {
                     // Ignore invalid ranges.
                     continue;
@@ -588,10 +589,24 @@ export function provideInlineCompletions(registry, position, model, context, tok
                     insertText = item.insertText;
                     if (languageConfigurationService && item.completeBracketPairs) {
                         insertText = closeBrackets(insertText, range.getStartPosition(), model, languageConfigurationService);
+                        // Modify range depending on if brackets are added or removed
+                        const diff = insertText.length - item.insertText.length;
+                        if (diff !== 0) {
+                            range = new Range(range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn + diff);
+                        }
                     }
                     snippetInfo = undefined;
                 }
                 else if ('snippet' in item.insertText) {
+                    const preBracketCompletionLength = item.insertText.snippet.length;
+                    if (languageConfigurationService && item.completeBracketPairs) {
+                        item.insertText.snippet = closeBrackets(item.insertText.snippet, range.getStartPosition(), model, languageConfigurationService);
+                        // Modify range depending on if brackets are added or removed
+                        const diff = item.insertText.snippet.length - preBracketCompletionLength;
+                        if (diff !== 0) {
+                            range = new Range(range.startLineNumber, range.startColumn, range.endLineNumber, range.endColumn + diff);
+                        }
+                    }
                     const snippet = new SnippetParser().parse(item.insertText.snippet);
                     insertText = snippet.toString();
                     snippetInfo = {

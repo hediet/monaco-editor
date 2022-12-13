@@ -21,6 +21,28 @@ import { IOpenerService } from '../common/opener.js';
 import { textLinkActiveForeground, textLinkForeground } from '../../theme/common/colorRegistry.js';
 import { registerThemingParticipant } from '../../theme/common/themeService.js';
 let Link = class Link extends Disposable {
+    get enabled() {
+        return this._enabled;
+    }
+    set enabled(enabled) {
+        if (enabled) {
+            this.el.setAttribute('aria-disabled', 'false');
+            this.el.tabIndex = 0;
+            this.el.style.pointerEvents = 'auto';
+            this.el.style.opacity = '1';
+            this.el.style.cursor = 'pointer';
+            this._enabled = false;
+        }
+        else {
+            this.el.setAttribute('aria-disabled', 'true');
+            this.el.tabIndex = -1;
+            this.el.style.pointerEvents = 'none';
+            this.el.style.opacity = '0.4';
+            this.el.style.cursor = 'default';
+            this._enabled = true;
+        }
+        this._enabled = enabled;
+    }
     constructor(container, _link, options = {}, openerService) {
         var _a;
         super();
@@ -54,28 +76,6 @@ let Link = class Link extends Disposable {
             }
         }));
         this.enabled = true;
-    }
-    get enabled() {
-        return this._enabled;
-    }
-    set enabled(enabled) {
-        if (enabled) {
-            this.el.setAttribute('aria-disabled', 'false');
-            this.el.tabIndex = 0;
-            this.el.style.pointerEvents = 'auto';
-            this.el.style.opacity = '1';
-            this.el.style.cursor = 'pointer';
-            this._enabled = false;
-        }
-        else {
-            this.el.setAttribute('aria-disabled', 'true');
-            this.el.tabIndex = -1;
-            this.el.style.pointerEvents = 'none';
-            this.el.style.opacity = '0.4';
-            this.el.style.cursor = 'default';
-            this._enabled = true;
-        }
-        this._enabled = enabled;
     }
 };
 Link = __decorate([

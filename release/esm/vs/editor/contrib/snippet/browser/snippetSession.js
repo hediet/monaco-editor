@@ -281,14 +281,6 @@ const _defaultOptions = {
     overtypingCapturer: undefined
 };
 let SnippetSession = class SnippetSession {
-    constructor(_editor, _template, _options = _defaultOptions, _languageConfigurationService) {
-        this._editor = _editor;
-        this._template = _template;
-        this._options = _options;
-        this._languageConfigurationService = _languageConfigurationService;
-        this._templateMerges = [];
-        this._snippets = [];
-    }
     static adjustWhitespace(model, position, snippet, adjustIndentation, adjustNewlines) {
         const line = model.getLineContent(position.lineNumber);
         const lineLeadingWhitespace = getLeadingWhitespace(line, 0, position.column - 1);
@@ -463,6 +455,14 @@ let SnippetSession = class SnippetSession {
             edits,
             snippets: [new OneSnippet(editor, snippet, '')]
         };
+    }
+    constructor(_editor, _template, _options = _defaultOptions, _languageConfigurationService) {
+        this._editor = _editor;
+        this._template = _template;
+        this._options = _options;
+        this._languageConfigurationService = _languageConfigurationService;
+        this._templateMerges = [];
+        this._snippets = [];
     }
     dispose() {
         dispose(this._snippets);

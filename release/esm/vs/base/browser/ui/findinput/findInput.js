@@ -9,14 +9,14 @@ import { Widget } from '../widget.js';
 import { Emitter } from '../../../common/event.js';
 import './findInput.css';
 import * as nls from '../../../../nls.js';
+import { DisposableStore } from '../../../common/lifecycle.js';
 const NLS_DEFAULT_LABEL = nls.localize('defaultLabel', "input");
 export class FindInput extends Widget {
-    constructor(parent, contextViewProvider, _showOptionButtons, options) {
-        var _a;
+    constructor(parent, contextViewProvider, options) {
         super();
-        this._showOptionButtons = _showOptionButtons;
         this.fixFocusOnOptionClickEnabled = true;
         this.imeSessionInProgress = false;
+        this.additionalTogglesDisposables = new DisposableStore();
         this.additionalToggles = [];
         this._onDidOptionChange = this._register(new Emitter());
         this.onDidOptionChange = this._onDidOptionChange.event;
@@ -31,10 +31,10 @@ export class FindInput extends Widget {
         this._onRegexKeyDown = this._register(new Emitter());
         this.onRegexKeyDown = this._onRegexKeyDown.event;
         this._lastHighlightFindOptions = 0;
-        this.contextViewProvider = contextViewProvider;
         this.placeholder = options.placeholder || '';
         this.validation = options.validation;
         this.label = options.label || NLS_DEFAULT_LABEL;
+        this.showCommonFindToggles = !!options.showCommonFindToggles;
         this.inputActiveOptionBorder = options.inputActiveOptionBorder;
         this.inputActiveOptionForeground = options.inputActiveOptionForeground;
         this.inputActiveOptionBackground = options.inputActiveOptionBackground;
@@ -59,7 +59,7 @@ export class FindInput extends Widget {
         const flexibleMaxHeight = options.flexibleMaxHeight;
         this.domNode = document.createElement('div');
         this.domNode.classList.add('monaco-findInput');
-        this.inputBox = this._register(new HistoryInputBox(this.domNode, this.contextViewProvider, {
+        this.inputBox = this._register(new HistoryInputBox(this.domNode, contextViewProvider, {
             placeholder: this.placeholder || '',
             ariaLabel: this.label || '',
             validationOptions: {
@@ -162,32 +162,16 @@ export class FindInput extends Widget {
         });
         this.controls = document.createElement('div');
         this.controls.className = 'controls';
-        this.controls.style.display = this._showOptionButtons ? 'block' : 'none';
+        this.controls.style.display = this.showCommonFindToggles ? 'block' : 'none';
         this.controls.appendChild(this.caseSensitive.domNode);
         this.controls.appendChild(this.wholeWords.domNode);
         this.controls.appendChild(this.regex.domNode);
-        if (!this._showOptionButtons) {
+        if (!this.showCommonFindToggles) {
             this.caseSensitive.domNode.style.display = 'none';
             this.wholeWords.domNode.style.display = 'none';
             this.regex.domNode.style.display = 'none';
         }
-        for (const toggle of (_a = options === null || options === void 0 ? void 0 : options.additionalToggles) !== null && _a !== void 0 ? _a : []) {
-            this._register(toggle);
-            this.controls.appendChild(toggle.domNode);
-            this._register(toggle.onChange(viaKeyboard => {
-                this._onDidOptionChange.fire(viaKeyboard);
-                if (!viaKeyboard && this.fixFocusOnOptionClickEnabled) {
-                    this.inputBox.focus();
-                }
-            }));
-            this.additionalToggles.push(toggle);
-        }
-        if (this.additionalToggles.length > 0) {
-            this.controls.style.display = 'block';
-        }
-        this.inputBox.paddingRight =
-            (this._showOptionButtons ? this.caseSensitive.width() + this.wholeWords.width() + this.regex.width() : 0)
-                + this.additionalToggles.reduce((r, t) => r + t.width(), 0);
+        this.setAdditionalToggles(options === null || options === void 0 ? void 0 : options.additionalToggles);
         this.domNode.appendChild(this.controls);
         parent === null || parent === void 0 ? void 0 : parent.appendChild(this.domNode);
         this._register(dom.addDisposableListener(this.inputBox.inputElement, 'compositionstart', (e) => {
@@ -235,6 +219,31 @@ export class FindInput extends Widget {
         else {
             this.disable();
         }
+    }
+    setAdditionalToggles(toggles) {
+        for (const currentToggle of this.additionalToggles) {
+            currentToggle.domNode.remove();
+        }
+        this.additionalToggles = [];
+        this.additionalTogglesDisposables.dispose();
+        this.additionalTogglesDisposables = new DisposableStore();
+        for (const toggle of toggles !== null && toggles !== void 0 ? toggles : []) {
+            this.additionalTogglesDisposables.add(toggle);
+            this.controls.appendChild(toggle.domNode);
+            this.additionalTogglesDisposables.add(toggle.onChange(viaKeyboard => {
+                this._onDidOptionChange.fire(viaKeyboard);
+                if (!viaKeyboard && this.fixFocusOnOptionClickEnabled) {
+                    this.inputBox.focus();
+                }
+            }));
+            this.additionalToggles.push(toggle);
+        }
+        if (this.additionalToggles.length > 0) {
+            this.controls.style.display = 'block';
+        }
+        this.inputBox.paddingRight =
+            (this.showCommonFindToggles ? this.caseSensitive.width() + this.wholeWords.width() + this.regex.width() : 0)
+                + this.additionalToggles.reduce((r, t) => r + t.width(), 0);
     }
     getValue() {
         return this.inputBox.value;

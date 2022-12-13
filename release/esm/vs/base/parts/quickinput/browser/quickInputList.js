@@ -38,12 +38,6 @@ import './media/quickInput.css';
 import { localize } from '../../../../nls.js';
 const $ = dom.$;
 class ListElement {
-    constructor(init) {
-        this.hidden = false;
-        this._onChecked = new Emitter();
-        this.onChecked = this._onChecked.event;
-        Object.assign(this, init);
-    }
     get checked() {
         return !!this._checked;
     }
@@ -52,6 +46,12 @@ class ListElement {
             this._checked = value;
             this._onChecked.fire(value);
         }
+    }
+    constructor(init) {
+        this.hidden = false;
+        this._onChecked = new Emitter();
+        this.onChecked = this._onChecked.event;
+        Object.assign(this, init);
     }
     dispose() {
         this._onChecked.dispose();
@@ -99,8 +99,8 @@ class ListElementRenderer {
         return data;
     }
     renderElement(element, index, data) {
-        data.toDisposeElement = dispose(data.toDisposeElement);
         data.element = element;
+        const mainItem = element.item ? element.item : element.separator;
         data.checkbox.checked = element.checked;
         data.toDisposeElement.push(element.onChecked(checked => data.checkbox.checked = checked));
         const { labelHighlights, descriptionHighlights, detailHighlights } = element;
@@ -109,21 +109,30 @@ class ListElementRenderer {
         options.matches = labelHighlights || [];
         options.descriptionTitle = element.saneDescription;
         options.descriptionMatches = descriptionHighlights || [];
-        options.extraClasses = element.item.iconClasses;
-        options.italic = element.item.italic;
-        options.strikethrough = element.item.strikethrough;
+        if (mainItem.type !== 'separator') {
+            options.extraClasses = mainItem.iconClasses;
+            options.italic = mainItem.italic;
+            options.strikethrough = mainItem.strikethrough;
+            data.entry.classList.remove('quick-input-list-separator-as-item');
+        }
+        else {
+            data.entry.classList.add('quick-input-list-separator-as-item');
+        }
         data.label.setLabel(element.saneLabel, element.saneDescription, options);
         // Keybinding
-        data.keybinding.set(element.item.keybinding);
+        data.keybinding.set(mainItem.type === 'separator' ? undefined : mainItem.keybinding);
         // Meta
         if (element.saneDetail) {
             data.detail.setLabel(element.saneDetail, undefined, {
                 matches: detailHighlights,
                 title: element.saneDetail
             });
-        }
+        } /* else {
+            // TODO investigate potential detail bleeding into next quickpicks
+            data.detail.setLabel('');
+        } */
         // Separator
-        if (element.separator && element.separator.label) {
+        if (element.item && element.separator && element.separator.label) {
             data.separator.textContent = element.separator.label;
             data.separator.style.display = '';
         }
@@ -132,8 +141,7 @@ class ListElementRenderer {
         }
         data.entry.classList.toggle('quick-input-list-separator-border', !!element.separator);
         // Actions
-        data.actionBar.clear();
-        const buttons = element.item.buttons;
+        const buttons = mainItem.buttons;
         if (buttons && buttons.length) {
             data.actionBar.push(buttons.map((button, index) => {
                 let cssClasses = button.iconClass || (button.iconPath ? getIconClass(button.iconPath) : undefined);
@@ -141,10 +149,15 @@ class ListElementRenderer {
                     cssClasses = cssClasses ? `${cssClasses} always-visible` : 'always-visible';
                 }
                 const action = new Action(`id-${index}`, '', cssClasses, true, () => __awaiter(this, void 0, void 0, function* () {
-                    element.fireButtonTriggered({
-                        button,
-                        item: element.item
-                    });
+                    mainItem.type !== 'separator'
+                        ? element.fireButtonTriggered({
+                            button,
+                            item: mainItem
+                        })
+                        : element.fireSeparatorButtonTriggered({
+                            button,
+                            separator: mainItem
+                        });
                 }));
                 action.tooltip = button.tooltip || '';
                 return action;
@@ -157,6 +170,7 @@ class ListElementRenderer {
     }
     disposeElement(element, index, data) {
         data.toDisposeElement = dispose(data.toDisposeElement);
+        data.actionBar.clear();
     }
     disposeTemplate(data) {
         data.toDisposeElement = dispose(data.toDisposeElement);
@@ -166,6 +180,10 @@ class ListElementRenderer {
 ListElementRenderer.ID = 'listelement';
 class ListElementDelegate {
     getHeight(element) {
+        if (!element.item) {
+            // must be a separator
+            return 24;
+        }
         return element.saneDetail ? 44 : 22;
     }
     getTemplateId(element) {
@@ -204,6 +222,8 @@ export class QuickInputList {
         this.onChangedCheckedElements = this._onChangedCheckedElements.event;
         this._onButtonTriggered = new Emitter();
         this.onButtonTriggered = this._onButtonTriggered.event;
+        this._onSeparatorButtonTriggered = new Emitter();
+        this.onSeparatorButtonTriggered = this._onSeparatorButtonTriggered.event;
         this._onKeyDown = new Emitter();
         this.onKeyDown = this._onKeyDown.event;
         this._onLeave = new Emitter();
@@ -277,7 +297,7 @@ export class QuickInputList {
                 this.list.setSelection([e.index]);
             }
         }));
-        this.disposables.push(this._onChangedAllVisibleChecked, this._onChangedCheckedCount, this._onChangedVisibleCount, this._onChangedCheckedElements, this._onButtonTriggered, this._onLeave, this._onKeyDown);
+        this.disposables.push(this._onChangedAllVisibleChecked, this._onChangedCheckedCount, this._onChangedVisibleCount, this._onChangedCheckedElements, this._onButtonTriggered, this._onSeparatorButtonTriggered, this._onLeave, this._onKeyDown);
     }
     get onDidChangeFocus() {
         return Event.map(this.list.onDidChangeFocus, e => e.elements.map(e => e.item));
@@ -345,45 +365,63 @@ export class QuickInputList {
     setElements(inputElements) {
         this.elementDisposables = dispose(this.elementDisposables);
         const fireButtonTriggered = (event) => this.fireButtonTriggered(event);
+        const fireSeparatorButtonTriggered = (event) => this.fireSeparatorButtonTriggered(event);
         this.inputElements = inputElements;
         this.elements = inputElements.reduce((result, item, index) => {
             var _a, _b, _c;
+            const previous = index && inputElements[index - 1];
+            const saneLabel = item.label ? item.label.replace(/\r?\n/g, ' ') : '';
+            const saneSortLabel = parseLabelWithIcons(saneLabel).text.trim();
+            let saneMeta, saneDescription, saneDetail, labelHighlights, descriptionHighlights, detailHighlights;
             if (item.type !== 'separator') {
-                const previous = index && inputElements[index - 1];
-                const saneLabel = item.label && item.label.replace(/\r?\n/g, ' ');
-                const saneSortLabel = parseLabelWithIcons(saneLabel).text.trim();
-                const saneMeta = item.meta && item.meta.replace(/\r?\n/g, ' ');
-                const saneDescription = item.description && item.description.replace(/\r?\n/g, ' ');
-                const saneDetail = item.detail && item.detail.replace(/\r?\n/g, ' ');
-                const saneAriaLabel = item.ariaLabel || [saneLabel, saneDescription, saneDetail]
-                    .map(s => getCodiconAriaLabel(s))
-                    .filter(s => !!s)
-                    .join(', ');
-                const hasCheckbox = this.parent.classList.contains('show-checkboxes');
-                result.push(new ListElement({
-                    hasCheckbox,
-                    index,
-                    item,
-                    saneLabel,
-                    saneSortLabel,
-                    saneMeta,
-                    saneAriaLabel,
-                    saneDescription,
-                    saneDetail,
-                    labelHighlights: (_a = item.highlights) === null || _a === void 0 ? void 0 : _a.label,
-                    descriptionHighlights: (_b = item.highlights) === null || _b === void 0 ? void 0 : _b.description,
-                    detailHighlights: (_c = item.highlights) === null || _c === void 0 ? void 0 : _c.detail,
-                    checked: false,
-                    separator: previous && previous.type === 'separator' ? previous : undefined,
-                    fireButtonTriggered
-                }));
+                saneMeta = item.meta && item.meta.replace(/\r?\n/g, ' ');
+                saneDescription = item.description && item.description.replace(/\r?\n/g, ' ');
+                saneDetail = item.detail && item.detail.replace(/\r?\n/g, ' ');
+                labelHighlights = (_a = item.highlights) === null || _a === void 0 ? void 0 : _a.label;
+                descriptionHighlights = (_b = item.highlights) === null || _b === void 0 ? void 0 : _b.description;
+                detailHighlights = (_c = item.highlights) === null || _c === void 0 ? void 0 : _c.detail;
             }
+            const saneAriaLabel = item.ariaLabel || [saneLabel, saneDescription, saneDetail]
+                .map(s => getCodiconAriaLabel(s))
+                .filter(s => !!s)
+                .join(', ');
+            const hasCheckbox = this.parent.classList.contains('show-checkboxes');
+            let separator;
+            if (item.type === 'separator') {
+                if (!item.buttons) {
+                    // This separator will be rendered as a part of the list item
+                    return result;
+                }
+                separator = item;
+            }
+            else if (previous && previous.type === 'separator' && !previous.buttons) {
+                separator = previous;
+            }
+            result.push(new ListElement({
+                hasCheckbox,
+                index,
+                item: item.type !== 'separator' ? item : undefined,
+                saneLabel,
+                saneSortLabel,
+                saneMeta,
+                saneAriaLabel,
+                saneDescription,
+                saneDetail,
+                labelHighlights,
+                descriptionHighlights,
+                detailHighlights,
+                checked: false,
+                separator,
+                fireButtonTriggered,
+                fireSeparatorButtonTriggered
+            }));
             return result;
         }, []);
         this.elementDisposables.push(...this.elements);
         this.elementDisposables.push(...this.elements.map(element => element.onChecked(() => this.fireCheckedEvents())));
         this.elementsToIndexes = this.elements.reduce((map, element, index) => {
-            map.set(element.item, index);
+            var _a;
+            map.set((_a = element.item) !== null && _a !== void 0 ? _a : element.separator, index);
             return map;
         }, new Map());
         this.list.splice(0, this.list.length); // Clear focus and selection first, sending the events when the list is empty.
@@ -415,7 +453,8 @@ export class QuickInputList {
     }
     getCheckedElements() {
         return this.elements.filter(e => e.checked)
-            .map(e => e.item);
+            .map(e => e.item)
+            .filter(e => !!e);
     }
     setCheckedElements(items) {
         try {
@@ -440,36 +479,43 @@ export class QuickInputList {
         if (!this.list.length) {
             return;
         }
-        if (what === QuickInputListFocus.Next && this.list.getFocus()[0] === this.list.length - 1) {
-            what = QuickInputListFocus.First;
-        }
-        if (what === QuickInputListFocus.Previous && this.list.getFocus()[0] === 0) {
-            what = QuickInputListFocus.Last;
-        }
         if (what === QuickInputListFocus.Second && this.list.length < 2) {
             what = QuickInputListFocus.First;
         }
         switch (what) {
             case QuickInputListFocus.First:
-                this.list.focusFirst();
+                this.list.scrollTop = 0;
+                this.list.focusFirst(undefined, (e) => !!e.item);
                 break;
             case QuickInputListFocus.Second:
-                this.list.focusNth(1);
+                this.list.scrollTop = 0;
+                this.list.focusNth(1, undefined, (e) => !!e.item);
                 break;
             case QuickInputListFocus.Last:
-                this.list.focusLast();
+                this.list.scrollTop = this.list.scrollHeight;
+                this.list.focusLast(undefined, (e) => !!e.item);
                 break;
-            case QuickInputListFocus.Next:
-                this.list.focusNext();
+            case QuickInputListFocus.Next: {
+                this.list.focusNext(undefined, true, undefined, (e) => !!e.item);
+                const index = this.list.getFocus()[0];
+                if (index !== 0 && !this.elements[index - 1].item && this.list.firstVisibleIndex > index - 1) {
+                    this.list.reveal(index - 1);
+                }
                 break;
-            case QuickInputListFocus.Previous:
-                this.list.focusPrevious();
+            }
+            case QuickInputListFocus.Previous: {
+                this.list.focusPrevious(undefined, true, undefined, (e) => !!e.item);
+                const index = this.list.getFocus()[0];
+                if (index !== 0 && !this.elements[index - 1].item && this.list.firstVisibleIndex > index - 1) {
+                    this.list.reveal(index - 1);
+                }
                 break;
+            }
             case QuickInputListFocus.NextPage:
-                this.list.focusNextPage();
+                this.list.focusNextPage(undefined, (e) => !!e.item);
                 break;
             case QuickInputListFocus.PreviousPage:
-                this.list.focusPreviousPage();
+                this.list.focusPreviousPage(undefined, (e) => !!e.item);
                 break;
         }
         const focused = this.list.getFocus()[0];
@@ -502,7 +548,9 @@ export class QuickInputList {
                 element.detailHighlights = undefined;
                 element.hidden = false;
                 const previous = element.index && this.inputElements[element.index - 1];
-                element.separator = previous && previous.type === 'separator' ? previous : undefined;
+                if (element.item) {
+                    element.separator = previous && previous.type === 'separator' && !previous.buttons ? previous : undefined;
+                }
             });
         }
         // Filter by value (since we support icons in labels, use $(..) aware fuzzy matching)
@@ -529,9 +577,8 @@ export class QuickInputList {
                     element.labelHighlights = undefined;
                     element.descriptionHighlights = undefined;
                     element.detailHighlights = undefined;
-                    element.hidden = !element.item.alwaysShow;
+                    element.hidden = element.item ? !element.item.alwaysShow : true;
                 }
-                element.separator = undefined;
                 // we can show the separator unless the list gets sorted by match
                 if (!this.sortByLabel) {
                     const previous = element.index && this.inputElements[element.index - 1];
@@ -552,7 +599,8 @@ export class QuickInputList {
             });
         }
         this.elementsToIndexes = shownElements.reduce((map, element, index) => {
-            map.set(element.item, index);
+            var _a;
+            map.set((_a = element.item) !== null && _a !== void 0 ? _a : element.separator, index);
             return map;
         }, new Map());
         this.list.splice(0, this.list.length, shownElements);
@@ -595,6 +643,9 @@ export class QuickInputList {
     }
     fireButtonTriggered(event) {
         this._onButtonTriggered.fire(event);
+    }
+    fireSeparatorButtonTriggered(event) {
+        this._onSeparatorButtonTriggered.fire(event);
     }
     style(styles) {
         this.list.style(styles);

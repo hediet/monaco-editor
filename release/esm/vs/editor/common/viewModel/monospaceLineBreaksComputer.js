@@ -7,11 +7,11 @@ import { CharacterClassifier } from '../core/characterClassifier.js';
 import { LineInjectedText } from '../textModelEvents.js';
 import { ModelLineProjectionData } from '../modelLineProjectionData.js';
 export class MonospaceLineBreaksComputerFactory {
+    static create(options) {
+        return new MonospaceLineBreaksComputerFactory(options.get(122 /* EditorOption.wordWrapBreakBeforeCharacters */), options.get(121 /* EditorOption.wordWrapBreakAfterCharacters */));
+    }
     constructor(breakBeforeChars, breakAfterChars) {
         this.classifier = new WrappingCharacterClassifier(breakBeforeChars, breakAfterChars);
-    }
-    static create(options) {
-        return new MonospaceLineBreaksComputerFactory(options.get(121 /* EditorOption.wordWrapBreakBeforeCharacters */), options.get(120 /* EditorOption.wordWrapBreakAfterCharacters */));
     }
     createLineBreaksComputer(fontInfo, tabSize, wrappingColumn, wrappingIndent) {
         const requests = [];

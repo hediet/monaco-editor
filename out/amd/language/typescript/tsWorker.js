@@ -91,13 +91,14 @@ define(["require", "exports", "./lib/typescriptServices", "./lib/lib"], function
         };
         TypeScriptWorker.prototype.getScriptFileNames = function () {
             var allModels = this._ctx.getMirrorModels().map(function (model) { return model.uri; });
-            var models = allModels.filter(function (uri) { return !fileNameIsLib(uri); }).map(function (uri) { return uri.toString(); });
+            var models = allModels.filter(function (uri) { return !fileNameIsLib(uri); }).map(function (uri) { return uri.toString(true); });
             return models.concat(Object.keys(this._extraLibs));
         };
         TypeScriptWorker.prototype._getModel = function (fileName) {
             var models = this._ctx.getMirrorModels();
             for (var i = 0; i < models.length; i++) {
-                if (models[i].uri.toString() === fileName) {
+                var uri = models[i].uri;
+                if (uri.toString() === fileName || uri.toString(true) === fileName) {
                     return models[i];
                 }
             }
@@ -490,7 +491,7 @@ define(["require", "exports", "./lib/typescriptServices", "./lib/lib"], function
                 console.warn('Monaco is not using webworkers for background tasks, and that is needed to support the customWorkerPath flag');
             }
             else {
-                importScripts(createData.customWorkerPath);
+                self.importScripts(createData.customWorkerPath);
                 var workerFactoryFunc = self.customTSWorkerFactory;
                 if (!workerFactoryFunc) {
                     throw new Error("The script at ".concat(createData.customWorkerPath, " does not add customTSWorkerFactory to self"));

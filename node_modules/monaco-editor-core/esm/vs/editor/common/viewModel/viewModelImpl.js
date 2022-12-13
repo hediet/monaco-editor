@@ -22,7 +22,7 @@ import { ViewLayout } from '../viewLayout/viewLayout.js';
 import { MinimapTokensColorTracker } from './minimapTokensColorTracker.js';
 import { MinimapLinesRenderingData, OverviewRulerDecorationsGroup, ViewLineRenderingData } from '../viewModel.js';
 import { ViewModelDecorations } from './viewModelDecorations.js';
-import { FocusChangedEvent, ModelContentChangedEvent, ModelDecorationsChangedEvent, ModelLanguageChangedEvent, ModelLanguageConfigurationChangedEvent, ModelOptionsChangedEvent, ModelTokensChangedEvent, ReadOnlyEditAttemptEvent, ScrollChangedEvent, ViewModelEventDispatcher, ViewZonesChangedEvent } from '../viewModelEventDispatcher.js';
+import { FocusChangedEvent, HiddenAreasChangedEvent, ModelContentChangedEvent, ModelDecorationsChangedEvent, ModelLanguageChangedEvent, ModelLanguageConfigurationChangedEvent, ModelOptionsChangedEvent, ModelTokensChangedEvent, ReadOnlyEditAttemptEvent, ScrollChangedEvent, ViewModelEventDispatcher, ViewZonesChangedEvent } from '../viewModelEventDispatcher.js';
 import { ViewModelLinesFromModelAsIs, ViewModelLinesFromProjectedModel } from './viewModelLines.js';
 const USE_IDENTITY_LINES_COLLECTION = true;
 export class ViewModel extends Disposable {
@@ -30,6 +30,8 @@ export class ViewModel extends Disposable {
         super();
         this.languageConfigurationService = languageConfigurationService;
         this._themeService = _themeService;
+        this.hiddenAreasModel = new HiddenAreasModel();
+        this.previousHiddenAreas = [];
         this._editorId = editorId;
         this._configuration = configuration;
         this.model = model;
@@ -46,9 +48,9 @@ export class ViewModel extends Disposable {
         else {
             const options = this._configuration.options;
             const fontInfo = options.get(45 /* EditorOption.fontInfo */);
-            const wrappingStrategy = options.get(126 /* EditorOption.wrappingStrategy */);
-            const wrappingInfo = options.get(133 /* EditorOption.wrappingInfo */);
-            const wrappingIndent = options.get(125 /* EditorOption.wrappingIndent */);
+            const wrappingStrategy = options.get(127 /* EditorOption.wrappingStrategy */);
+            const wrappingInfo = options.get(134 /* EditorOption.wrappingInfo */);
+            const wrappingIndent = options.get(126 /* EditorOption.wrappingIndent */);
             this._lines = new ViewModelLinesFromProjectedModel(this._editorId, this.model, domLineBreaksComputerFactory, monospaceLineBreaksComputerFactory, fontInfo, this.model.getOptions().tabSize, wrappingStrategy, wrappingInfo.wrappingColumn, wrappingIndent);
         }
         this.coordinatesConverter = this._lines.createCoordinatesConverter();
@@ -138,9 +140,9 @@ export class ViewModel extends Disposable {
         let restorePreviousViewportStart = false;
         const options = this._configuration.options;
         const fontInfo = options.get(45 /* EditorOption.fontInfo */);
-        const wrappingStrategy = options.get(126 /* EditorOption.wrappingStrategy */);
-        const wrappingInfo = options.get(133 /* EditorOption.wrappingInfo */);
-        const wrappingIndent = options.get(125 /* EditorOption.wrappingIndent */);
+        const wrappingStrategy = options.get(127 /* EditorOption.wrappingStrategy */);
+        const wrappingInfo = options.get(134 /* EditorOption.wrappingInfo */);
+        const wrappingIndent = options.get(126 /* EditorOption.wrappingIndent */);
         if (this._lines.setWrappingSettings(fontInfo, wrappingStrategy, wrappingInfo.wrappingColumn, wrappingIndent)) {
             eventsCollector.emitViewEvent(new viewEvents.ViewFlushedEvent());
             eventsCollector.emitViewEvent(new viewEvents.ViewLineMappingChangedEvent());
@@ -353,11 +355,17 @@ export class ViewModel extends Disposable {
             this._eventDispatcher.emitOutgoingEvent(new ModelDecorationsChangedEvent(e));
         }));
     }
-    setHiddenAreas(ranges) {
+    setHiddenAreas(ranges, source) {
+        this.hiddenAreasModel.setHiddenAreas(source, ranges);
+        const mergedRanges = this.hiddenAreasModel.getMergedRanges();
+        if (mergedRanges === this.previousHiddenAreas) {
+            return;
+        }
+        this.previousHiddenAreas = mergedRanges;
         let lineMappingChanged = false;
         try {
             const eventsCollector = this._eventDispatcher.beginEmitViewEvents();
-            lineMappingChanged = this._lines.setHiddenAreas(ranges);
+            lineMappingChanged = this._lines.setHiddenAreas(mergedRanges);
             if (lineMappingChanged) {
                 eventsCollector.emitViewEvent(new viewEvents.ViewFlushedEvent());
                 eventsCollector.emitViewEvent(new viewEvents.ViewLineMappingChangedEvent());
@@ -373,11 +381,11 @@ export class ViewModel extends Disposable {
         }
         this._updateConfigurationViewLineCount.schedule();
         if (lineMappingChanged) {
-            this._eventDispatcher.emitOutgoingEvent(new ViewZonesChangedEvent());
+            this._eventDispatcher.emitOutgoingEvent(new HiddenAreasChangedEvent());
         }
     }
     getVisibleRangesPlusViewportAboveBelow() {
-        const layoutInfo = this._configuration.options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = this._configuration.options.get(133 /* EditorOption.layoutInfo */);
         const lineHeight = this._configuration.options.get(60 /* EditorOption.lineHeight */);
         const linesAround = Math.max(20, Math.round(layoutInfo.height / lineHeight));
         const partialData = this.viewLayout.getLinesViewportData();
@@ -388,6 +396,9 @@ export class ViewModel extends Disposable {
     getVisibleRanges() {
         const visibleViewRange = this.getCompletelyVisibleViewRange();
         return this._toModelVisibleRanges(visibleViewRange);
+    }
+    getHiddenAreas() {
+        return this._lines.getHiddenAreas();
     }
     _toModelVisibleRanges(visibleViewRange) {
         const visibleRange = this.coordinatesConverter.convertViewRangeToModelRange(visibleViewRange);
@@ -511,19 +522,26 @@ export class ViewModel extends Disposable {
         }
         return result + 2;
     }
-    getDecorationsInViewport(visibleRange) {
-        return this._decorations.getDecorationsViewportData(visibleRange).decorations;
+    getDecorationsInViewport(visibleRange, onlyMinimapDecorations = false) {
+        return this._decorations.getDecorationsViewportData(visibleRange, onlyMinimapDecorations).decorations;
     }
     getInjectedTextAt(viewPosition) {
         return this._lines.getInjectedTextAt(viewPosition);
     }
-    getViewLineRenderingData(visibleRange, lineNumber) {
+    getViewportViewLineRenderingData(visibleRange, lineNumber) {
+        const allInlineDecorations = this._decorations.getDecorationsViewportData(visibleRange).inlineDecorations;
+        const inlineDecorations = allInlineDecorations[lineNumber - visibleRange.startLineNumber];
+        return this._getViewLineRenderingData(lineNumber, inlineDecorations);
+    }
+    getViewLineRenderingData(lineNumber) {
+        const inlineDecorations = this._decorations.getInlineDecorationsOnLine(lineNumber);
+        return this._getViewLineRenderingData(lineNumber, inlineDecorations);
+    }
+    _getViewLineRenderingData(lineNumber, inlineDecorations) {
         const mightContainRTL = this.model.mightContainRTL();
         const mightContainNonBasicASCII = this.model.mightContainNonBasicASCII();
         const tabSize = this.getTabSize();
         const lineData = this._lines.getViewLineData(lineNumber);
-        const allInlineDecorations = this._decorations.getDecorationsViewportData(visibleRange).inlineDecorations;
-        let inlineDecorations = allInlineDecorations[lineNumber - visibleRange.startLineNumber];
         if (lineData.inlineDecorations) {
             inlineDecorations = [
                 ...inlineDecorations,
@@ -563,13 +581,9 @@ export class ViewModel extends Disposable {
         const decorations = this.model.getOverviewRulerDecorations();
         for (const decoration of decorations) {
             const opts1 = decoration.options.overviewRuler;
-            if (opts1) {
-                opts1.invalidateCachedColor();
-            }
+            opts1 === null || opts1 === void 0 ? void 0 : opts1.invalidateCachedColor();
             const opts2 = decoration.options.minimap;
-            if (opts2) {
-                opts2.invalidateCachedColor();
-            }
+            opts2 === null || opts2 === void 0 ? void 0 : opts2.invalidateCachedColor();
         }
     }
     getValueInRange(range, eol) {
@@ -858,13 +872,6 @@ export class ViewModel extends Disposable {
     }
 }
 class ViewportStart {
-    constructor(_model, _viewLineNumber, _isValid, _modelTrackedRange, _startLineDelta) {
-        this._model = _model;
-        this._viewLineNumber = _viewLineNumber;
-        this._isValid = _isValid;
-        this._modelTrackedRange = _modelTrackedRange;
-        this._startLineDelta = _startLineDelta;
-    }
     static create(model) {
         const viewportStartLineTrackedRange = model._setTrackedRange(null, new Range(1, 1, 1, 1), 1 /* TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges */);
         return new ViewportStart(model, 1, false, viewportStartLineTrackedRange, 0);
@@ -880,6 +887,13 @@ class ViewportStart {
     }
     get startLineDelta() {
         return this._startLineDelta;
+    }
+    constructor(_model, _viewLineNumber, _isValid, _modelTrackedRange, _startLineDelta) {
+        this._model = _model;
+        this._viewLineNumber = _viewLineNumber;
+        this._isValid = _isValid;
+        this._modelTrackedRange = _modelTrackedRange;
+        this._startLineDelta = _startLineDelta;
     }
     dispose() {
         this._model._setTrackedRange(this._modelTrackedRange, null, 1 /* TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges */);
@@ -925,4 +939,74 @@ class OverviewRulerDecorations {
             this.asArray.push(group);
         }
     }
+}
+class HiddenAreasModel {
+    constructor() {
+        this.hiddenAreas = new Map();
+        this.shouldRecompute = false;
+        this.ranges = [];
+    }
+    setHiddenAreas(source, ranges) {
+        const existing = this.hiddenAreas.get(source);
+        if (existing && rangeArraysEqual(existing, ranges)) {
+            return;
+        }
+        this.hiddenAreas.set(source, ranges);
+        this.shouldRecompute = true;
+    }
+    /**
+     * The returned array is immutable.
+    */
+    getMergedRanges() {
+        if (!this.shouldRecompute) {
+            return this.ranges;
+        }
+        this.shouldRecompute = false;
+        const newRanges = Array.from(this.hiddenAreas.values()).reduce((r, hiddenAreas) => mergeLineRangeArray(r, hiddenAreas), []);
+        if (rangeArraysEqual(this.ranges, newRanges)) {
+            return this.ranges;
+        }
+        this.ranges = newRanges;
+        return this.ranges;
+    }
+}
+function mergeLineRangeArray(arr1, arr2) {
+    const result = [];
+    let i = 0;
+    let j = 0;
+    while (i < arr1.length && j < arr2.length) {
+        const item1 = arr1[i];
+        const item2 = arr2[j];
+        if (item1.endLineNumber < item2.startLineNumber - 1) {
+            result.push(arr1[i++]);
+        }
+        else if (item2.endLineNumber < item1.startLineNumber - 1) {
+            result.push(arr2[j++]);
+        }
+        else {
+            const startLineNumber = Math.min(item1.startLineNumber, item2.startLineNumber);
+            const endLineNumber = Math.max(item1.endLineNumber, item2.endLineNumber);
+            result.push(new Range(startLineNumber, 1, endLineNumber, 1));
+            i++;
+            j++;
+        }
+    }
+    while (i < arr1.length) {
+        result.push(arr1[i++]);
+    }
+    while (j < arr2.length) {
+        result.push(arr2[j++]);
+    }
+    return result;
+}
+function rangeArraysEqual(arr1, arr2) {
+    if (arr1.length !== arr2.length) {
+        return false;
+    }
+    for (let i = 0; i < arr1.length; i++) {
+        if (!arr1[i].equalsRange(arr2[i])) {
+            return false;
+        }
+    }
+    return true;
 }

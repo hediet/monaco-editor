@@ -151,10 +151,6 @@ export class Text extends Marker {
 export class TransformableMarker extends Marker {
 }
 export class Placeholder extends TransformableMarker {
-    constructor(index) {
-        super();
-        this.index = index;
-    }
     static compareByIndex(a, b) {
         if (a.index === b.index) {
             return 0;
@@ -174,6 +170,10 @@ export class Placeholder extends TransformableMarker {
         else {
             return 0;
         }
+    }
+    constructor(index) {
+        super();
+        this.index = index;
     }
     get isFinalTabstop() {
         return this.index === 0;

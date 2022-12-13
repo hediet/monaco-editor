@@ -8,8 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-import { isFirefox } from '../../browser.js';
-import { DataTransfers, StaticDND } from '../../dnd.js';
+import { DataTransfers } from '../../dnd.js';
 import { $, addDisposableListener, animate, getContentHeight, getContentWidth, getTopLeftOffset, scheduleAtNextAnimationFrame } from '../../dom.js';
 import { DomEmitter } from '../../event.js';
 import { EventType as TouchEventType, Gesture } from '../../touch.js';
@@ -23,6 +22,10 @@ import { Range } from '../../../common/range.js';
 import { Scrollable } from '../../../common/scrollable.js';
 import { RangeMap, shift } from './rangeMap.js';
 import { RowCache } from './rowCache.js';
+import { BugIndicatingError } from '../../../common/errors.js';
+const StaticDND = {
+    CurrentDragAndDropData: undefined
+};
 const DefaultOptions = {
     useShadows: true,
     verticalScrollMode: 1 /* ScrollbarVisibility.Auto */,
@@ -129,6 +132,31 @@ class ListViewAccessibilityProvider {
  * List widget instead.
  */
 export class ListView {
+    get contentHeight() { return this.rangeMap.size; }
+    get horizontalScrolling() { return this._horizontalScrolling; }
+    set horizontalScrolling(value) {
+        if (value === this._horizontalScrolling) {
+            return;
+        }
+        if (value && this.supportDynamicHeights) {
+            throw new Error('Horizontal scrolling and dynamic heights not supported simultaneously');
+        }
+        this._horizontalScrolling = value;
+        this.domNode.classList.toggle('horizontal-scrolling', this._horizontalScrolling);
+        if (this._horizontalScrolling) {
+            for (const item of this.items) {
+                this.measureItemWidth(item);
+            }
+            this.updateScrollWidth();
+            this.scrollableElement.setScrollDimensions({ width: getContentWidth(this.domNode) });
+            this.rowsContainer.style.width = `${Math.max(this.scrollWidth || 0, this.renderWidth)}px`;
+        }
+        else {
+            this.scrollableElementWidthDelayer.cancel();
+            this.scrollableElement.setScrollDimensions({ width: this.renderWidth, scrollWidth: this.renderWidth });
+            this.rowsContainer.style.width = '';
+        }
+    }
     constructor(container, virtualDelegate, renderers, options = DefaultOptions) {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
         this.virtualDelegate = virtualDelegate;
@@ -173,6 +201,8 @@ export class ListView {
         const transformOptimization = (_b = options.transformOptimization) !== null && _b !== void 0 ? _b : DefaultOptions.transformOptimization;
         if (transformOptimization) {
             this.rowsContainer.style.transform = 'translate3d(0px, 0px, 0px)';
+            this.rowsContainer.style.overflow = 'hidden';
+            this.rowsContainer.style.contain = 'strict';
         }
         this.disposables.add(Gesture.addTarget(this.rowsContainer));
         this.scrollable = new Scrollable({
@@ -204,31 +234,6 @@ export class ListView {
         this.supportDynamicHeights = (_j = options.supportDynamicHeights) !== null && _j !== void 0 ? _j : DefaultOptions.supportDynamicHeights;
         this.dnd = (_k = options.dnd) !== null && _k !== void 0 ? _k : DefaultOptions.dnd;
         this.layout();
-    }
-    get contentHeight() { return this.rangeMap.size; }
-    get horizontalScrolling() { return this._horizontalScrolling; }
-    set horizontalScrolling(value) {
-        if (value === this._horizontalScrolling) {
-            return;
-        }
-        if (value && this.supportDynamicHeights) {
-            throw new Error('Horizontal scrolling and dynamic heights not supported simultaneously');
-        }
-        this._horizontalScrolling = value;
-        this.domNode.classList.toggle('horizontal-scrolling', this._horizontalScrolling);
-        if (this._horizontalScrolling) {
-            for (const item of this.items) {
-                this.measureItemWidth(item);
-            }
-            this.updateScrollWidth();
-            this.scrollableElement.setScrollDimensions({ width: getContentWidth(this.domNode) });
-            this.rowsContainer.style.width = `${Math.max(this.scrollWidth || 0, this.renderWidth)}px`;
-        }
-        else {
-            this.scrollableElementWidthDelayer.cancel();
-            this.scrollableElement.setScrollDimensions({ width: this.renderWidth, scrollWidth: this.renderWidth });
-            this.rowsContainer.style.width = '';
-        }
     }
     updateOptions(options) {
         if (options.additionalScrollHeight !== undefined) {
@@ -397,6 +402,18 @@ export class ListView {
         const scrollDimensions = this.scrollableElement.getScrollDimensions();
         return scrollDimensions.height;
     }
+    get firstVisibleIndex() {
+        const range = this.getRenderRange(this.lastRenderTop, this.lastRenderHeight);
+        const firstElTop = this.rangeMap.positionAt(range.start);
+        const nextElTop = this.rangeMap.positionAt(range.start + 1);
+        if (nextElTop !== -1) {
+            const firstElMidpoint = (nextElTop - firstElTop) / 2 + firstElTop;
+            if (firstElMidpoint < this.scrollTop) {
+                return range.start + 1;
+            }
+        }
+        return range.start;
+    }
     element(index) {
         return this.items[index].element;
     }
@@ -516,7 +533,7 @@ export class ListView {
         if (!item.row || !item.row.domNode) {
             return;
         }
-        item.row.domNode.style.width = isFirefox ? '-moz-fit-content' : 'fit-content';
+        item.row.domNode.style.width = 'fit-content';
         item.width = getContentWidth(item.row.domNode);
         const style = window.getComputedStyle(item.row.domNode);
         if (style.paddingLeft) {
@@ -585,6 +602,7 @@ export class ListView {
     get onMouseDblClick() { return Event.map(this.disposables.add(new DomEmitter(this.domNode, 'dblclick')).event, e => this.toMouseEvent(e), this.disposables); }
     get onMouseMiddleClick() { return Event.filter(Event.map(this.disposables.add(new DomEmitter(this.domNode, 'auxclick')).event, e => this.toMouseEvent(e), this.disposables), e => e.browserEvent.button === 1, this.disposables); }
     get onMouseDown() { return Event.map(this.disposables.add(new DomEmitter(this.domNode, 'mousedown')).event, e => this.toMouseEvent(e), this.disposables); }
+    get onMouseOver() { return Event.map(this.disposables.add(new DomEmitter(this.domNode, 'mouseover')).event, e => this.toMouseEvent(e), this.disposables); }
     get onContextMenu() { return Event.any(Event.map(this.disposables.add(new DomEmitter(this.domNode, 'contextmenu')).event, e => this.toMouseEvent(e), this.disposables), Event.map(this.disposables.add(new DomEmitter(this.domNode, TouchEventType.Contextmenu)).event, e => this.toGestureEvent(e), this.disposables)); }
     get onTouchStart() { return Event.map(this.disposables.add(new DomEmitter(this.domNode, 'touchstart')).event, e => this.toTouchEvent(e), this.disposables); }
     get onTap() { return Event.map(this.disposables.add(new DomEmitter(this.rowsContainer, TouchEventType.Tap)).event, e => this.toGestureEvent(e), this.disposables); }
@@ -653,6 +671,7 @@ export class ListView {
             event.dataTransfer.setDragImage(dragImage, -10, -10);
             setTimeout(() => document.body.removeChild(dragImage), 0);
         }
+        this.domNode.classList.add('dragging');
         this.currentDragData = new ElementsDragAndDropData(elements);
         StaticDND.CurrentDragAndDropData = new ExternalElementsDragAndDropData(elements);
         (_b = (_a = this.dnd).onDragStart) === null || _b === void 0 ? void 0 : _b.call(_a, this.currentDragData, event);
@@ -750,6 +769,7 @@ export class ListView {
         const dragData = this.currentDragData;
         this.teardownDragAndDropScrollTopAnimation();
         this.clearDragOverFeedback();
+        this.domNode.classList.remove('dragging');
         this.currentDragData = undefined;
         StaticDND.CurrentDragAndDropData = undefined;
         if (!dragData || !event.browserEvent.dataTransfer) {
@@ -764,6 +784,7 @@ export class ListView {
         this.canDrop = false;
         this.teardownDragAndDropScrollTopAnimation();
         this.clearDragOverFeedback();
+        this.domNode.classList.remove('dragging');
         this.currentDragData = undefined;
         StaticDND.CurrentDragAndDropData = undefined;
         (_b = (_a = this.dnd).onDragEnd) === null || _b === void 0 ? void 0 : _b.call(_a, event);
@@ -920,21 +941,22 @@ export class ListView {
             return 0;
         }
         const size = item.size;
-        if (!this.setRowHeight && item.row) {
-            const newSize = item.row.domNode.offsetHeight;
-            item.size = newSize;
+        if (item.row) {
+            item.row.domNode.style.height = '';
+            item.size = item.row.domNode.offsetHeight;
             item.lastDynamicHeightWidth = this.renderWidth;
-            return newSize - size;
+            return item.size - size;
         }
         const row = this.cache.alloc(item.templateId);
         row.domNode.style.height = '';
         this.rowsContainer.appendChild(row.domNode);
         const renderer = this.renderers.get(item.templateId);
-        if (renderer) {
-            renderer.renderElement(item.element, index, row.templateData, undefined);
-            (_a = renderer.disposeElement) === null || _a === void 0 ? void 0 : _a.call(renderer, item.element, index, row.templateData, undefined);
+        if (!renderer) {
+            throw new BugIndicatingError('Missing renderer for templateId: ' + item.templateId);
         }
+        renderer.renderElement(item.element, index, row.templateData, undefined);
         item.size = row.domNode.offsetHeight;
+        (_a = renderer.disposeElement) === null || _a === void 0 ? void 0 : _a.call(renderer, item.element, index, row.templateData, undefined);
         (_c = (_b = this.virtualDelegate).setDynamicHeight) === null || _c === void 0 ? void 0 : _c.call(_b, item.element, item.size);
         item.lastDynamicHeightWidth = this.renderWidth;
         this.rowsContainer.removeChild(row.domNode);
@@ -992,6 +1014,9 @@ __decorate([
 __decorate([
     memoize
 ], ListView.prototype, "onMouseDown", null);
+__decorate([
+    memoize
+], ListView.prototype, "onMouseOver", null);
 __decorate([
     memoize
 ], ListView.prototype, "onContextMenu", null);

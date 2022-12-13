@@ -78,6 +78,9 @@ class BracketsData {
     }
 }
 export class BracketMatchingController extends Disposable {
+    static get(editor) {
+        return editor.getContribution(BracketMatchingController.ID);
+    }
     constructor(editor) {
         super();
         this._editor = editor;
@@ -121,9 +124,6 @@ export class BracketMatchingController extends Disposable {
         this._register(editor.onDidFocusEditorWidget(() => {
             this._updateBracketsSoon.schedule();
         }));
-    }
-    static get(editor) {
-        return editor.getContribution(BracketMatchingController.ID);
     }
     jumpToBracket() {
         if (!this._editor.hasModel()) {

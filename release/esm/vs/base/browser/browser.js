@@ -37,6 +37,9 @@ class DevicePixelRatioMonitor extends Disposable {
     }
 }
 class PixelRatioImpl extends Disposable {
+    get value() {
+        return this._value;
+    }
     constructor() {
         super();
         this._onDidChange = this._register(new Emitter());
@@ -47,9 +50,6 @@ class PixelRatioImpl extends Disposable {
             this._value = this._getPixelRatio();
             this._onDidChange.fire(this._value);
         }));
-    }
-    get value() {
-        return this._value;
     }
     _getPixelRatio() {
         const ctx = document.createElement('canvas').getContext('2d');
@@ -113,9 +113,16 @@ export const isElectron = (userAgent.indexOf('Electron/') >= 0);
 export const isAndroid = (userAgent.indexOf('Android') >= 0);
 let standalone = false;
 if (window.matchMedia) {
-    const matchMedia = window.matchMedia('(display-mode: standalone)');
-    standalone = matchMedia.matches;
-    addMatchMediaChangeListener(matchMedia, ({ matches }) => {
+    const standaloneMatchMedia = window.matchMedia('(display-mode: standalone) or (display-mode: window-controls-overlay)');
+    const fullScreenMatchMedia = window.matchMedia('(display-mode: fullscreen)');
+    standalone = standaloneMatchMedia.matches;
+    addMatchMediaChangeListener(standaloneMatchMedia, ({ matches }) => {
+        // entering fullscreen would change standaloneMatchMedia.matches to false
+        // if standalone is true (running as PWA) and entering fullscreen, skip this change
+        if (standalone && fullScreenMatchMedia.matches) {
+            return;
+        }
+        // otherwise update standalone (browser to PWA or PWA to browser)
         standalone = matches;
     });
 }

@@ -12,6 +12,7 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
 import { CancellationToken } from '../../../base/common/cancellation.js';
+import { Emitter } from '../../../base/common/event.js';
 import { QuickInputController } from '../../../base/parts/quickinput/browser/quickInput.js';
 import { IAccessibilityService } from '../../accessibility/common/accessibility.js';
 import { IContextKeyService, RawContextKey } from '../../contextkey/common/contextkey.js';
@@ -23,25 +24,28 @@ import { activeContrastBorder, badgeBackground, badgeForeground, buttonBackgroun
 import { computeStyles } from '../../theme/common/styler.js';
 import { IThemeService, Themable } from '../../theme/common/themeService.js';
 let QuickInputService = class QuickInputService extends Themable {
-    constructor(instantiationService, contextKeyService, themeService, accessibilityService, layoutService) {
-        super(themeService);
-        this.instantiationService = instantiationService;
-        this.contextKeyService = contextKeyService;
-        this.accessibilityService = accessibilityService;
-        this.layoutService = layoutService;
-        this.contexts = new Map();
-    }
     get controller() {
         if (!this._controller) {
             this._controller = this._register(this.createController());
         }
         return this._controller;
     }
+    get hasController() { return !!this._controller; }
     get quickAccess() {
         if (!this._quickAccess) {
             this._quickAccess = this._register(this.instantiationService.createInstance(QuickAccessController));
         }
         return this._quickAccess;
+    }
+    constructor(instantiationService, contextKeyService, themeService, accessibilityService, layoutService) {
+        super(themeService);
+        this.instantiationService = instantiationService;
+        this.contextKeyService = contextKeyService;
+        this.accessibilityService = accessibilityService;
+        this.layoutService = layoutService;
+        this._onShow = this._register(new Emitter());
+        this._onHide = this._register(new Emitter());
+        this.contexts = new Map();
     }
     createController(host = this.layoutService, options) {
         const defaultOptions = {
@@ -60,8 +64,14 @@ let QuickInputService = class QuickInputService extends Themable {
         // Layout changes
         this._register(host.onDidLayout(dimension => controller.layout(dimension, host.offset.quickPickTop)));
         // Context keys
-        this._register(controller.onShow(() => this.resetContextKeys()));
-        this._register(controller.onHide(() => this.resetContextKeys()));
+        this._register(controller.onShow(() => {
+            this.resetContextKeys();
+            this._onShow.fire();
+        }));
+        this._register(controller.onHide(() => {
+            this.resetContextKeys();
+            this._onHide.fire();
+        }));
         return controller;
     }
     setContextKey(id) {
@@ -94,7 +104,9 @@ let QuickInputService = class QuickInputService extends Themable {
         return this.controller.createQuickPick();
     }
     updateStyles() {
-        this.controller.applyStyles(this.computeStyles());
+        if (this.hasController) {
+            this.controller.applyStyles(this.computeStyles());
+        }
     }
     computeStyles() {
         return {

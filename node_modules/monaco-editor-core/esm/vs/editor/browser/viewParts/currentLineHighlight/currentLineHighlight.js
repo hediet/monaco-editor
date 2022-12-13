@@ -14,7 +14,7 @@ export class AbstractLineHighlightOverlay extends DynamicViewOverlay {
         super();
         this._context = context;
         const options = this._context.configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         this._lineHeight = options.get(60 /* EditorOption.lineHeight */);
         this._renderLineHighlight = options.get(86 /* EditorOption.renderLineHighlight */);
         this._renderLineHighlightOnlyWhenFocus = options.get(87 /* EditorOption.renderLineHighlightOnlyWhenFocus */);
@@ -52,7 +52,7 @@ export class AbstractLineHighlightOverlay extends DynamicViewOverlay {
     }
     onConfigurationChanged(e) {
         const options = this._context.configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         this._lineHeight = options.get(60 /* EditorOption.lineHeight */);
         this._renderLineHighlight = options.get(86 /* EditorOption.renderLineHighlight */);
         this._renderLineHighlightOnlyWhenFocus = options.get(87 /* EditorOption.renderLineHighlightOnlyWhenFocus */);

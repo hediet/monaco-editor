@@ -1,7 +1,3 @@
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
 import { $, append } from '../../dom.js';
 import { BaseActionViewItem } from '../actionbar/actionViewItems.js';
 import { DropdownMenu } from './dropdown.js';
@@ -68,7 +64,18 @@ export class DropdownMenuActionViewItem extends BaseActionViewItem {
                     return that.options.anchorAlignmentProvider();
                 } });
         }
+        this.updateTooltip();
         this.updateEnabled();
+    }
+    getTooltip() {
+        let title = null;
+        if (this.action.tooltip) {
+            title = this.action.tooltip;
+        }
+        else if (this.action.label) {
+            title = this.action.label;
+        }
+        return title !== null && title !== void 0 ? title : undefined;
     }
     setActionContext(newContext) {
         super.setActionContext(newContext);
@@ -83,7 +90,7 @@ export class DropdownMenuActionViewItem extends BaseActionViewItem {
     }
     updateEnabled() {
         var _a, _b;
-        const disabled = !this.getAction().enabled;
+        const disabled = !this.action.enabled;
         (_a = this.actionItem) === null || _a === void 0 ? void 0 : _a.classList.toggle('disabled', disabled);
         (_b = this.element) === null || _b === void 0 ? void 0 : _b.classList.toggle('disabled', disabled);
     }

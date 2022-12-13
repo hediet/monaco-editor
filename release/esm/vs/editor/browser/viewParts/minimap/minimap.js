@@ -31,8 +31,8 @@ const GUTTER_DECORATION_WIDTH = 2;
 class MinimapOptions {
     constructor(configuration, theme, tokensColorTracker) {
         const options = configuration.options;
-        const pixelRatio = options.get(130 /* EditorOption.pixelRatio */);
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const pixelRatio = options.get(131 /* EditorOption.pixelRatio */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         const minimapLayout = layoutInfo.minimap;
         const fontInfo = options.get(45 /* EditorOption.fontInfo */);
         const minimapOpts = options.get(66 /* EditorOption.minimap */);
@@ -316,10 +316,6 @@ class MinimapBuffers {
     }
 }
 class MinimapSamplingState {
-    constructor(samplingRatio, minimapLines) {
-        this.samplingRatio = samplingRatio;
-        this.minimapLines = minimapLines;
-    }
     static compute(options, viewLineCount, oldSamplingState) {
         if (options.renderMinimap === 0 /* RenderMinimap.None */ || !options.isSampling) {
             return [null, []];
@@ -425,6 +421,10 @@ class MinimapSamplingState {
             events = [{ type: 'flush' }];
         }
         return [new MinimapSamplingState(ratio, result), events];
+    }
+    constructor(samplingRatio, minimapLines) {
+        this.samplingRatio = samplingRatio;
+        this.minimapLines = minimapLines;
     }
     modelLineToMinimapLine(lineNumber) {
         return Math.min(this.minimapLines.length, Math.max(1, Math.round(lineNumber / this.samplingRatio)));
@@ -734,7 +734,7 @@ export class Minimap extends ViewPart {
         else {
             visibleRange = new Range(startLineNumber, 1, endLineNumber, this._context.viewModel.getLineMaxColumn(endLineNumber));
         }
-        const decorations = this._context.viewModel.getDecorationsInViewport(visibleRange);
+        const decorations = this._context.viewModel.getDecorationsInViewport(visibleRange, true);
         if (this._samplingState) {
             const result = [];
             for (const decoration of decorations) {

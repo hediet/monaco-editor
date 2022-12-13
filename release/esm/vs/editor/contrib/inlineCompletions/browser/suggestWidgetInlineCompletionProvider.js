@@ -13,6 +13,15 @@ import { SnippetSession } from '../../snippet/browser/snippetSession.js';
 import { SuggestController } from '../../suggest/browser/suggestController.js';
 import { minimizeInlineCompletion, normalizedInlineCompletionsEquals } from './inlineCompletionToGhostText.js';
 export class SuggestWidgetInlineCompletionProvider extends Disposable {
+    /**
+     * Returns undefined if the suggest widget is not active.
+    */
+    get state() {
+        if (!this._isActive) {
+            return undefined;
+        }
+        return { selectedItem: this._currentSuggestItemInfo };
+    }
     constructor(editor, suggestControllerPreselector) {
         super();
         this.editor = editor;
@@ -98,15 +107,6 @@ export class SuggestWidgetInlineCompletionProvider extends Disposable {
         }
         this.update(this._isActive);
     }
-    /**
-     * Returns undefined if the suggest widget is not active.
-    */
-    get state() {
-        if (!this._isActive) {
-            return undefined;
-        }
-        return { selectedItem: this._currentSuggestItemInfo };
-    }
     update(newActive) {
         const newInlineCompletion = this.getSuggestItemInfo();
         let shouldFire = false;
@@ -139,15 +139,11 @@ export class SuggestWidgetInlineCompletionProvider extends Disposable {
     }
     stopForceRenderingAbove() {
         const suggestController = SuggestController.get(this.editor);
-        if (suggestController) {
-            suggestController.stopForceRenderingAbove();
-        }
+        suggestController === null || suggestController === void 0 ? void 0 : suggestController.stopForceRenderingAbove();
     }
     forceRenderingAbove() {
         const suggestController = SuggestController.get(this.editor);
-        if (suggestController) {
-            suggestController.forceRenderingAbove();
-        }
+        suggestController === null || suggestController === void 0 ? void 0 : suggestController.forceRenderingAbove();
     }
 }
 export function rangeStartsWith(rangeToTest, prefix) {

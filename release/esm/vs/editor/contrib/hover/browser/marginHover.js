@@ -122,15 +122,15 @@ export class MarginHoverWidget extends Disposable {
 }
 MarginHoverWidget.ID = 'editor.contrib.modesGlyphHoverWidget';
 class MarginHoverComputer {
-    constructor(_editor) {
-        this._editor = _editor;
-        this._lineNumber = -1;
-    }
     get lineNumber() {
         return this._lineNumber;
     }
     set lineNumber(value) {
         this._lineNumber = value;
+    }
+    constructor(_editor) {
+        this._editor = _editor;
+        this._lineNumber = -1;
     }
     computeSync() {
         const toHoverMessage = (contents) => {

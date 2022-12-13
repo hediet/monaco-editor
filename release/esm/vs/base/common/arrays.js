@@ -426,3 +426,50 @@ export class ArrayQueue {
         return result;
     }
 }
+/**
+ * This class is faster than an iterator and array for lazy computed data.
+*/
+export class CallbackIterable {
+    constructor(
+    /**
+     * Calls the callback for every item.
+     * Stops when the callback returns false.
+    */
+    iterate) {
+        this.iterate = iterate;
+    }
+    toArray() {
+        const result = [];
+        this.iterate(item => { result.push(item); return true; });
+        return result;
+    }
+    filter(predicate) {
+        return new CallbackIterable(cb => this.iterate(item => predicate(item) ? cb(item) : true));
+    }
+    map(mapFn) {
+        return new CallbackIterable(cb => this.iterate(item => cb(mapFn(item))));
+    }
+    findLast(predicate) {
+        let result;
+        this.iterate(item => {
+            if (predicate(item)) {
+                result = item;
+            }
+            return true;
+        });
+        return result;
+    }
+    findLastMaxBy(comparator) {
+        let result;
+        let first = true;
+        this.iterate(item => {
+            if (first || CompareResult.isGreaterThan(comparator(item, result))) {
+                first = false;
+                result = item;
+            }
+            return true;
+        });
+        return result;
+    }
+}
+CallbackIterable.empty = new CallbackIterable(_callback => { });

@@ -12,21 +12,36 @@ const autoCloseAlways = () => true;
 const autoCloseNever = () => false;
 const autoCloseBeforeWhitespace = (chr) => (chr === ' ' || chr === '\t');
 export class CursorConfiguration {
+    static shouldRecreate(e) {
+        return (e.hasChanged(133 /* EditorOption.layoutInfo */)
+            || e.hasChanged(119 /* EditorOption.wordSeparators */)
+            || e.hasChanged(33 /* EditorOption.emptySelectionClipboard */)
+            || e.hasChanged(70 /* EditorOption.multiCursorMergeOverlapping */)
+            || e.hasChanged(72 /* EditorOption.multiCursorPaste */)
+            || e.hasChanged(5 /* EditorOption.autoClosingBrackets */)
+            || e.hasChanged(8 /* EditorOption.autoClosingQuotes */)
+            || e.hasChanged(6 /* EditorOption.autoClosingDelete */)
+            || e.hasChanged(7 /* EditorOption.autoClosingOvertype */)
+            || e.hasChanged(11 /* EditorOption.autoSurround */)
+            || e.hasChanged(118 /* EditorOption.useTabStops */)
+            || e.hasChanged(60 /* EditorOption.lineHeight */)
+            || e.hasChanged(82 /* EditorOption.readOnly */));
+    }
     constructor(languageId, modelOptions, configuration, languageConfigurationService) {
         this.languageConfigurationService = languageConfigurationService;
         this._cursorMoveConfigurationBrand = undefined;
         this._languageId = languageId;
         const options = configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         this.readOnly = options.get(82 /* EditorOption.readOnly */);
         this.tabSize = modelOptions.tabSize;
         this.indentSize = modelOptions.indentSize;
         this.insertSpaces = modelOptions.insertSpaces;
-        this.stickyTabStops = options.get(105 /* EditorOption.stickyTabStops */);
+        this.stickyTabStops = options.get(106 /* EditorOption.stickyTabStops */);
         this.lineHeight = options.get(60 /* EditorOption.lineHeight */);
         this.pageSize = Math.max(1, Math.floor(layoutInfo.height / this.lineHeight) - 2);
-        this.useTabStops = options.get(117 /* EditorOption.useTabStops */);
-        this.wordSeparators = options.get(118 /* EditorOption.wordSeparators */);
+        this.useTabStops = options.get(118 /* EditorOption.useTabStops */);
+        this.wordSeparators = options.get(119 /* EditorOption.wordSeparators */);
         this.emptySelectionClipboard = options.get(33 /* EditorOption.emptySelectionClipboard */);
         this.copyWithSyntaxHighlighting = options.get(21 /* EditorOption.copyWithSyntaxHighlighting */);
         this.multiCursorMergeOverlapping = options.get(70 /* EditorOption.multiCursorMergeOverlapping */);
@@ -50,21 +65,6 @@ export class CursorConfiguration {
                 this.surroundingPairs[pair.open] = pair.close;
             }
         }
-    }
-    static shouldRecreate(e) {
-        return (e.hasChanged(132 /* EditorOption.layoutInfo */)
-            || e.hasChanged(118 /* EditorOption.wordSeparators */)
-            || e.hasChanged(33 /* EditorOption.emptySelectionClipboard */)
-            || e.hasChanged(70 /* EditorOption.multiCursorMergeOverlapping */)
-            || e.hasChanged(72 /* EditorOption.multiCursorPaste */)
-            || e.hasChanged(5 /* EditorOption.autoClosingBrackets */)
-            || e.hasChanged(8 /* EditorOption.autoClosingQuotes */)
-            || e.hasChanged(6 /* EditorOption.autoClosingDelete */)
-            || e.hasChanged(7 /* EditorOption.autoClosingOvertype */)
-            || e.hasChanged(11 /* EditorOption.autoSurround */)
-            || e.hasChanged(117 /* EditorOption.useTabStops */)
-            || e.hasChanged(60 /* EditorOption.lineHeight */)
-            || e.hasChanged(82 /* EditorOption.readOnly */));
     }
     get electricChars() {
         var _a;
@@ -134,11 +134,6 @@ export class CursorConfiguration {
     }
 }
 export class CursorState {
-    constructor(modelState, viewState) {
-        this._cursorStateBrand = undefined;
-        this.modelState = modelState;
-        this.viewState = viewState;
-    }
     static fromModelState(modelState) {
         return new PartialModelCursorState(modelState);
     }
@@ -156,6 +151,11 @@ export class CursorState {
             states[i] = this.fromModelSelection(modelSelections[i]);
         }
         return states;
+    }
+    constructor(modelState, viewState) {
+        this._cursorStateBrand = undefined;
+        this.modelState = modelState;
+        this.viewState = viewState;
     }
     equals(other) {
         return (this.viewState.equals(other.viewState) && this.modelState.equals(other.modelState));

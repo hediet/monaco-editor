@@ -27,6 +27,9 @@ export class HoverWidget extends Disposable {
     }
 }
 export class HoverAction extends Disposable {
+    static render(parent, actionOptions, keybindingLabel) {
+        return new HoverAction(parent, actionOptions, keybindingLabel);
+    }
     constructor(parent, actionOptions, keybindingLabel) {
         super();
         this.actionContainer = dom.append(parent, $('div.action-container'));
@@ -52,9 +55,6 @@ export class HoverAction extends Disposable {
             }
         }));
         this.setEnabled(true);
-    }
-    static render(parent, actionOptions, keybindingLabel) {
-        return new HoverAction(parent, actionOptions, keybindingLabel);
     }
     setEnabled(enabled) {
         if (enabled) {

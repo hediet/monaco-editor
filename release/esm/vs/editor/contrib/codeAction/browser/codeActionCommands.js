@@ -20,27 +20,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { Lazy } from '../../../../base/common/lazy.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { escapeRegExpCharacters } from '../../../../base/common/strings.js';
 import { EditorAction, EditorCommand } from '../../../browser/editorExtensions.js';
-import { IBulkEditService, ResourceEdit } from '../../../browser/services/bulkEditService.js';
 import { EditorContextKeys } from '../../../common/editorContextKeys.js';
 import { ILanguageFeaturesService } from '../../../common/services/languageFeatures.js';
-import { codeActionCommandId, fixAllCommandId, organizeImportsCommandId, refactorCommandId, refactorPreviewCommandId, sourceActionCommandId } from './codeAction.js';
+import { acceptSelectedCodeActionCommand, applyCodeAction, ApplyCodeActionReason, codeActionCommandId, fixAllCommandId, organizeImportsCommandId, previewSelectedCodeActionCommand, refactorCommandId, refactorPreviewCommandId, sourceActionCommandId } from './codeAction.js';
 import { CodeActionUi } from './codeActionUi.js';
+import { CodeActionWidget, Context } from './codeActionWidget.js';
 import { MessageController } from '../../message/browser/messageController.js';
 import * as nls from '../../../../nls.js';
-import { ICommandService } from '../../../../platform/commands/common/commands.js';
+import { Action2, registerAction2 } from '../../../../platform/actions/common/actions.js';
 import { ContextKeyExpr, IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { IMarkerService } from '../../../../platform/markers/common/markers.js';
 import { IEditorProgressService } from '../../../../platform/progress/common/progress.js';
-import { INotificationService } from '../../../../platform/notification/common/notification.js';
-import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
 import { CodeActionModel, SUPPORTED_CODE_ACTIONS } from './codeActionModel.js';
-import { CodeActionCommandArgs, CodeActionKind, CodeActionTriggerSource } from './types.js';
+import { CodeActionCommandArgs, CodeActionKind, CodeActionTriggerSource } from '../common/types.js';
 function contextKeyForSupportedActions(kind) {
     return ContextKeyExpr.regex(SUPPORTED_CODE_ACTIONS.keys()[0], new RegExp('(\\s|^)' + escapeRegExpCharacters(kind.value) + '\\b'));
 }
@@ -86,14 +83,17 @@ const argsSchema = {
         }
     }
 };
-let QuickFixController = class QuickFixController extends Disposable {
+let CodeActionController = class CodeActionController extends Disposable {
+    static get(editor) {
+        return editor.getContribution(CodeActionController.ID);
+    }
     constructor(editor, markerService, contextKeyService, progressService, _instantiationService, languageFeaturesService) {
         super();
         this._instantiationService = _instantiationService;
         this._editor = editor;
         this._model = this._register(new CodeActionModel(this._editor, languageFeaturesService.codeActionProvider, markerService, contextKeyService, progressService));
         this._register(this._model.onDidChangeState(newState => this.update(newState)));
-        this._ui = new Lazy(() => this._register(new CodeActionUi(editor, QuickFixAction.Id, AutoFixAction.Id, {
+        this._ui = new Lazy(() => this._register(_instantiationService.createInstance(CodeActionUi, editor, QuickFixAction.Id, AutoFixAction.Id, {
             applyCodeAction: (action, retrigger, preview) => __awaiter(this, void 0, void 0, function* () {
                 try {
                     yield this._applyCodeAction(action, preview);
@@ -104,10 +104,7 @@ let QuickFixController = class QuickFixController extends Disposable {
                     }
                 }
             })
-        }, this._instantiationService)));
-    }
-    static get(editor) {
-        return editor.getContribution(QuickFixController.ID);
+        })));
     }
     update(newState) {
         this._ui.getValue().update(newState);
@@ -131,71 +128,18 @@ let QuickFixController = class QuickFixController extends Disposable {
         return this._instantiationService.invokeFunction(applyCodeAction, action, ApplyCodeActionReason.FromCodeActions, { preview, editor: this._editor });
     }
 };
-QuickFixController.ID = 'editor.contrib.quickFixController';
-QuickFixController = __decorate([
+CodeActionController.ID = 'editor.contrib.codeActionController';
+CodeActionController = __decorate([
     __param(1, IMarkerService),
     __param(2, IContextKeyService),
     __param(3, IEditorProgressService),
     __param(4, IInstantiationService),
     __param(5, ILanguageFeaturesService)
-], QuickFixController);
-export { QuickFixController };
-export var ApplyCodeActionReason;
-(function (ApplyCodeActionReason) {
-    ApplyCodeActionReason["OnSave"] = "onSave";
-    ApplyCodeActionReason["FromProblemsView"] = "fromProblemsView";
-    ApplyCodeActionReason["FromCodeActions"] = "fromCodeActions";
-})(ApplyCodeActionReason || (ApplyCodeActionReason = {}));
-export function applyCodeAction(accessor, item, codeActionReason, options) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const bulkEditService = accessor.get(IBulkEditService);
-        const commandService = accessor.get(ICommandService);
-        const telemetryService = accessor.get(ITelemetryService);
-        const notificationService = accessor.get(INotificationService);
-        telemetryService.publicLog2('codeAction.applyCodeAction', {
-            codeActionTitle: item.action.title,
-            codeActionKind: item.action.kind,
-            codeActionIsPreferred: !!item.action.isPreferred,
-            reason: codeActionReason,
-        });
-        yield item.resolve(CancellationToken.None);
-        if (item.action.edit) {
-            yield bulkEditService.apply(ResourceEdit.convert(item.action.edit), {
-                editor: options === null || options === void 0 ? void 0 : options.editor,
-                label: item.action.title,
-                quotableLabel: item.action.title,
-                code: 'undoredo.codeAction',
-                respectAutoSaveConfig: true,
-                showPreview: options === null || options === void 0 ? void 0 : options.preview,
-            });
-        }
-        if (item.action.command) {
-            try {
-                yield commandService.executeCommand(item.action.command.id, ...(item.action.command.arguments || []));
-            }
-            catch (err) {
-                const message = asMessage(err);
-                notificationService.error(typeof message === 'string'
-                    ? message
-                    : nls.localize('applyCodeActionFailed', "An unknown error occurred while applying the code action"));
-            }
-        }
-    });
-}
-function asMessage(err) {
-    if (typeof err === 'string') {
-        return err;
-    }
-    else if (err instanceof Error && typeof err.message === 'string') {
-        return err.message;
-    }
-    else {
-        return undefined;
-    }
-}
+], CodeActionController);
+export { CodeActionController };
 function triggerCodeActionsForEditorSelection(editor, notAvailableMessage, filter, autoApply, preview = false, triggerAction = CodeActionTriggerSource.Default) {
     if (editor.hasModel()) {
-        const controller = QuickFixController.get(editor);
+        const controller = CodeActionController.get(editor);
         controller === null || controller === void 0 ? void 0 : controller.manualTriggerAtCurrentPosition(notAvailableMessage, triggerAction, filter, autoApply, preview);
     }
 }
@@ -386,3 +330,110 @@ export class AutoFixAction extends EditorAction {
     }
 }
 AutoFixAction.Id = 'editor.action.autoFix';
+const weight = 100 /* KeybindingWeight.EditorContrib */ + 1000;
+registerAction2(class extends Action2 {
+    constructor() {
+        super({
+            id: 'hideCodeActionWidget',
+            title: {
+                value: nls.localize('hideCodeActionWidget.title', "Hide code action widget"),
+                original: 'Hide code action widget'
+            },
+            precondition: Context.Visible,
+            keybinding: {
+                weight,
+                primary: 9 /* KeyCode.Escape */,
+                secondary: [1024 /* KeyMod.Shift */ | 9 /* KeyCode.Escape */]
+            },
+        });
+    }
+    run() {
+        var _a;
+        (_a = CodeActionWidget.INSTANCE) === null || _a === void 0 ? void 0 : _a.hide();
+    }
+});
+registerAction2(class extends Action2 {
+    constructor() {
+        super({
+            id: 'selectPrevCodeAction',
+            title: {
+                value: nls.localize('selectPrevCodeAction.title', "Select previous code action"),
+                original: 'Select previous code action'
+            },
+            precondition: Context.Visible,
+            keybinding: {
+                weight,
+                primary: 16 /* KeyCode.UpArrow */,
+                secondary: [2048 /* KeyMod.CtrlCmd */ | 16 /* KeyCode.UpArrow */],
+                mac: { primary: 16 /* KeyCode.UpArrow */, secondary: [2048 /* KeyMod.CtrlCmd */ | 16 /* KeyCode.UpArrow */, 256 /* KeyMod.WinCtrl */ | 46 /* KeyCode.KeyP */] },
+            }
+        });
+    }
+    run() {
+        var _a;
+        (_a = CodeActionWidget.INSTANCE) === null || _a === void 0 ? void 0 : _a.focusPrevious();
+    }
+});
+registerAction2(class extends Action2 {
+    constructor() {
+        super({
+            id: 'selectNextCodeAction',
+            title: {
+                value: nls.localize('selectNextCodeAction.title', "Select next code action"),
+                original: 'Select next code action'
+            },
+            precondition: Context.Visible,
+            keybinding: {
+                weight,
+                primary: 18 /* KeyCode.DownArrow */,
+                secondary: [2048 /* KeyMod.CtrlCmd */ | 18 /* KeyCode.DownArrow */],
+                mac: { primary: 18 /* KeyCode.DownArrow */, secondary: [2048 /* KeyMod.CtrlCmd */ | 18 /* KeyCode.DownArrow */, 256 /* KeyMod.WinCtrl */ | 44 /* KeyCode.KeyN */] }
+            }
+        });
+    }
+    run() {
+        var _a;
+        (_a = CodeActionWidget.INSTANCE) === null || _a === void 0 ? void 0 : _a.focusNext();
+    }
+});
+registerAction2(class extends Action2 {
+    constructor() {
+        super({
+            id: acceptSelectedCodeActionCommand,
+            title: {
+                value: nls.localize('acceptSelected.title', "Accept selected code action"),
+                original: 'Accept selected code action'
+            },
+            precondition: Context.Visible,
+            keybinding: {
+                weight,
+                primary: 3 /* KeyCode.Enter */,
+                secondary: [2048 /* KeyMod.CtrlCmd */ | 84 /* KeyCode.Period */],
+            }
+        });
+    }
+    run() {
+        var _a;
+        (_a = CodeActionWidget.INSTANCE) === null || _a === void 0 ? void 0 : _a.acceptSelected();
+    }
+});
+registerAction2(class extends Action2 {
+    constructor() {
+        super({
+            id: previewSelectedCodeActionCommand,
+            title: {
+                value: nls.localize('previewSelected.title', "Preview selected code action"),
+                original: 'Preview selected code action'
+            },
+            precondition: Context.Visible,
+            keybinding: {
+                weight,
+                primary: 2048 /* KeyMod.CtrlCmd */ | 3 /* KeyCode.Enter */,
+            }
+        });
+    }
+    run() {
+        var _a;
+        (_a = CodeActionWidget.INSTANCE) === null || _a === void 0 ? void 0 : _a.acceptSelected({ preview: true });
+    }
+});

@@ -69,11 +69,11 @@ class ModelData {
         this._modelEventListeners.dispose();
         this._disposeLanguageSelection();
     }
-    setLanguage(languageSelection) {
+    setLanguage(languageSelection, source) {
         this._disposeLanguageSelection();
         this._languageSelection = languageSelection;
-        this._languageSelectionListener = this._languageSelection.onDidChange(() => this.model.setMode(languageSelection.languageId));
-        this.model.setMode(languageSelection.languageId);
+        this._languageSelectionListener = this._languageSelection.onDidChange(() => this.model.setMode(languageSelection.languageId, source));
+        this.model.setMode(languageSelection.languageId, source);
     }
 }
 const DEFAULT_EOL = (platform.isLinux || platform.isMacintosh) ? 1 /* DefaultEndOfLine.LF */ : 2 /* DefaultEndOfLine.CRLF */;
@@ -338,7 +338,7 @@ let ModelService = class ModelService extends Disposable {
         this._onModelAdded.fire(modelData.model);
         return modelData.model;
     }
-    setMode(model, languageSelection) {
+    setMode(model, languageSelection, source) {
         if (!languageSelection) {
             return;
         }
@@ -346,7 +346,7 @@ let ModelService = class ModelService extends Disposable {
         if (!modelData) {
             return;
         }
-        modelData.setLanguage(languageSelection);
+        modelData.setLanguage(languageSelection, source);
     }
     getModels() {
         const ret = [];

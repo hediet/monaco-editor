@@ -6,9 +6,11 @@ import { createKeybinding } from '../../../base/common/keybindings.js';
 import { OS } from '../../../base/common/platform.js';
 import { CommandsRegistry } from '../../commands/common/commands.js';
 import { Registry } from '../../registry/common/platform.js';
+import { combinedDisposable, DisposableStore, toDisposable } from '../../../base/common/lifecycle.js';
+import { LinkedList } from '../../../base/common/linkedList.js';
 class KeybindingsRegistryImpl {
     constructor() {
-        this._coreKeybindings = [];
+        this._coreKeybindings = new LinkedList();
         this._extensionKeybindings = [];
         this._cachedMergedKeybindings = null;
     }
@@ -35,10 +37,11 @@ class KeybindingsRegistryImpl {
     }
     registerKeybindingRule(rule) {
         const actualKb = KeybindingsRegistryImpl.bindToCurrentPlatform(rule);
+        const result = new DisposableStore();
         if (actualKb && actualKb.primary) {
             const kk = createKeybinding(actualKb.primary, OS);
             if (kk) {
-                this._registerDefaultKeybinding(kk, rule.id, rule.args, rule.weight, 0, rule.when);
+                result.add(this._registerDefaultKeybinding(kk, rule.id, rule.args, rule.weight, 0, rule.when));
             }
         }
         if (actualKb && Array.isArray(actualKb.secondary)) {
@@ -46,14 +49,14 @@ class KeybindingsRegistryImpl {
                 const k = actualKb.secondary[i];
                 const kk = createKeybinding(k, OS);
                 if (kk) {
-                    this._registerDefaultKeybinding(kk, rule.id, rule.args, rule.weight, -i - 1, rule.when);
+                    result.add(this._registerDefaultKeybinding(kk, rule.id, rule.args, rule.weight, -i - 1, rule.when));
                 }
             }
         }
+        return result;
     }
     registerCommandAndKeybindingRule(desc) {
-        this.registerKeybindingRule(desc);
-        CommandsRegistry.registerCommand(desc);
+        return combinedDisposable(this.registerKeybindingRule(desc), CommandsRegistry.registerCommand(desc));
     }
     static _mightProduceChar(keyCode) {
         if (keyCode >= 21 /* KeyCode.Digit0 */ && keyCode <= 30 /* KeyCode.Digit9 */) {
@@ -89,7 +92,7 @@ class KeybindingsRegistryImpl {
         if (OS === 1 /* OperatingSystem.Windows */) {
             this._assertNoCtrlAlt(keybinding.parts[0], commandId);
         }
-        this._coreKeybindings.push({
+        const remove = this._coreKeybindings.push({
             keybinding: keybinding.parts,
             command: commandId,
             commandArgs: commandArgs,
@@ -100,10 +103,14 @@ class KeybindingsRegistryImpl {
             isBuiltinExtension: false
         });
         this._cachedMergedKeybindings = null;
+        return toDisposable(() => {
+            remove();
+            this._cachedMergedKeybindings = null;
+        });
     }
     getDefaultKeybindings() {
         if (!this._cachedMergedKeybindings) {
-            this._cachedMergedKeybindings = [].concat(this._coreKeybindings).concat(this._extensionKeybindings);
+            this._cachedMergedKeybindings = Array.from(this._coreKeybindings).concat(this._extensionKeybindings);
             this._cachedMergedKeybindings.sort(sorter);
         }
         return this._cachedMergedKeybindings.slice(0);
@@ -119,11 +126,13 @@ function sorter(a, b) {
     if (a.weight1 !== b.weight1) {
         return a.weight1 - b.weight1;
     }
-    if (a.command < b.command) {
-        return -1;
-    }
-    if (a.command > b.command) {
-        return 1;
+    if (a.command && b.command) {
+        if (a.command < b.command) {
+            return -1;
+        }
+        if (a.command > b.command) {
+            return 1;
+        }
     }
     return a.weight2 - b.weight2;
 }

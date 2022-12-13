@@ -130,7 +130,7 @@ class Widget {
         this.allowEditorOverflow = this._actual.allowEditorOverflow || false;
         this.suppressMouseDown = this._actual.suppressMouseDown || false;
         const options = this._context.configuration.options;
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
         this._fixedOverflowWidgets = options.get(37 /* EditorOption.fixedOverflowWidgets */);
         this._contentWidth = layoutInfo.contentWidth;
         this._contentLeft = layoutInfo.contentLeft;
@@ -153,8 +153,8 @@ class Widget {
     onConfigurationChanged(e) {
         const options = this._context.configuration.options;
         this._lineHeight = options.get(60 /* EditorOption.lineHeight */);
-        if (e.hasChanged(132 /* EditorOption.layoutInfo */)) {
-            const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        if (e.hasChanged(133 /* EditorOption.layoutInfo */)) {
+            const layoutInfo = options.get(133 /* EditorOption.layoutInfo */);
             this._contentLeft = layoutInfo.contentLeft;
             this._contentWidth = layoutInfo.contentWidth;
             this._maxWidth = this._getMaxWidth();
@@ -237,7 +237,7 @@ class Widget {
         // Initially, the limits are defined as the dom node limits
         const MIN_LIMIT = Math.max(0, domNodePosition.left - width);
         const MAX_LIMIT = Math.min(domNodePosition.left + domNodePosition.width + width, windowSize.width);
-        let absoluteLeft = domNodePosition.left + left - dom.StandardWindow.scrollX;
+        let absoluteLeft = domNodePosition.left + left - window.scrollX;
         if (absoluteLeft + width > MAX_LIMIT) {
             const delta = absoluteLeft - (MAX_LIMIT - width);
             absoluteLeft -= delta;
@@ -254,8 +254,8 @@ class Widget {
         const aboveTop = topLeft.top - height;
         const belowTop = bottomLeft.top + this._lineHeight;
         const domNodePosition = dom.getDomNodePagePosition(this._viewDomNode.domNode);
-        const absoluteAboveTop = domNodePosition.top + aboveTop - dom.StandardWindow.scrollY;
-        const absoluteBelowTop = domNodePosition.top + belowTop - dom.StandardWindow.scrollY;
+        const absoluteAboveTop = domNodePosition.top + aboveTop - window.scrollY;
+        const absoluteBelowTop = domNodePosition.top + belowTop - window.scrollY;
         const windowSize = dom.getClientArea(document.body);
         const [aboveLeft, absoluteAboveLeft] = this._layoutHorizontalSegmentInPage(windowSize, domNodePosition, topLeft.left - ctx.scrollLeft + this._contentLeft, width);
         const [belowLeft, absoluteBelowLeft] = this._layoutHorizontalSegmentInPage(windowSize, domNodePosition, bottomLeft.left - ctx.scrollLeft + this._contentLeft, width);
@@ -312,6 +312,11 @@ class Widget {
             if (visibleRange.left < firstLineMinLeft) {
                 firstLineMinLeft = visibleRange.left;
             }
+        }
+        // Left-align widgets that should appear :before content
+        if (this._affinity === 3 /* PositionAffinity.LeftOfInjectedText */ &&
+            this._viewRange.startColumn === 1) {
+            firstLineMinLeft = 0;
         }
         let lastLineMinLeft = 1073741824 /* Constants.MAX_SAFE_SMALL_INTEGER */; //lastLine.Constants.MAX_SAFE_SMALL_INTEGER;
         for (const visibleRange of lastLine.ranges) {

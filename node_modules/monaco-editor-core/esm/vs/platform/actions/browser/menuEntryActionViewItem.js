@@ -22,17 +22,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 import { $, addDisposableListener, append, asCSSUrl, EventType, ModifierKeyEmitter, prepend } from '../../../base/browser/dom.js';
 import { StandardKeyboardEvent } from '../../../base/browser/keyboardEvent.js';
-import { ActionViewItem, BaseActionViewItem } from '../../../base/browser/ui/actionbar/actionViewItems.js';
+import { ActionViewItem, BaseActionViewItem, SelectActionViewItem } from '../../../base/browser/ui/actionbar/actionViewItems.js';
 import { DropdownMenuActionViewItem } from '../../../base/browser/ui/dropdown/dropdownActionViewItem.js';
 import { ActionRunner, Separator, SubmenuAction } from '../../../base/common/actions.js';
 import { UILabelProvider } from '../../../base/common/keybindingLabels.js';
-import { combinedDisposable, DisposableStore, MutableDisposable, toDisposable } from '../../../base/common/lifecycle.js';
+import { combinedDisposable, MutableDisposable, toDisposable } from '../../../base/common/lifecycle.js';
 import { isLinux, isWindows, OS } from '../../../base/common/platform.js';
 import './menuEntryActionViewItem.css';
 import { localize } from '../../../nls.js';
 import { IMenuService, MenuItemAction, SubmenuItemAction } from '../common/actions.js';
+import { isICommandActionToggleInfo } from '../../action/common/action.js';
 import { IContextKeyService } from '../../contextkey/common/contextkey.js';
-import { IContextMenuService } from '../../contextview/browser/contextView.js';
+import { IContextMenuService, IContextViewService } from '../../contextview/browser/contextView.js';
 import { IInstantiationService } from '../../instantiation/common/instantiation.js';
 import { IKeybindingService } from '../../keybinding/common/keybinding.js';
 import { INotificationService } from '../../notification/common/notification.js';
@@ -40,21 +41,19 @@ import { IStorageService } from '../../storage/common/storage.js';
 import { IThemeService, ThemeIcon } from '../../theme/common/themeService.js';
 import { isDark } from '../../theme/common/theme.js';
 import { assertType } from '../../../base/common/types.js';
+import { attachSelectBoxStyler, attachStylerCallback } from '../../theme/common/styler.js';
+import { selectBorder } from '../../theme/common/colorRegistry.js';
+export function createAndFillInContextMenuActions(menu, options, target, primaryGroup) {
+    const groups = menu.getActions(options);
+    const modifierKeyEmitter = ModifierKeyEmitter.getInstance();
+    const useAlternativeActions = modifierKeyEmitter.keyStatus.altKey || ((isWindows || isLinux) && modifierKeyEmitter.keyStatus.shiftKey);
+    fillInActions(groups, target, useAlternativeActions, primaryGroup ? actionGroup => actionGroup === primaryGroup : actionGroup => actionGroup === 'navigation');
+}
 export function createAndFillInActionBarActions(menu, options, target, primaryGroup, primaryMaxCount, shouldInlineSubmenu, useSeparatorsInPrimaryActions) {
     const groups = menu.getActions(options);
     const isPrimaryAction = typeof primaryGroup === 'string' ? (actionGroup) => actionGroup === primaryGroup : primaryGroup;
     // Action bars handle alternative actions on their own so the alternative actions should be ignored
     fillInActions(groups, target, false, isPrimaryAction, primaryMaxCount, shouldInlineSubmenu, useSeparatorsInPrimaryActions);
-    return asDisposable(groups);
-}
-function asDisposable(groups) {
-    const disposables = new DisposableStore();
-    for (const [, actions] of groups) {
-        for (const action of actions) {
-            disposables.add(action);
-        }
-    }
-    return disposables;
 }
 function fillInActions(groups, target, useAlternativeActions, isPrimaryAction = actionGroup => actionGroup === 'navigation', primaryMaxCount = Number.MAX_SAFE_INTEGER, shouldInlineSubmenu = () => false, useSeparatorsInPrimaryActions = false) {
     let primaryBucket;
@@ -109,20 +108,6 @@ function fillInActions(groups, target, useAlternativeActions, isPrimaryAction = 
         const overflow = primaryBucket.splice(primaryMaxCount, primaryBucket.length - primaryMaxCount);
         secondaryBucket.unshift(...overflow, new Separator());
     }
-}
-function registerConfigureMenu(contextMenuService, item, action) {
-    assertType(item.element);
-    return addDisposableListener(item.element, 'contextmenu', event => {
-        if (!action.hideActions) {
-            return;
-        }
-        event.preventDefault();
-        event.stopPropagation();
-        contextMenuService.showContextMenu({
-            getAnchor: () => item.element,
-            getActions: () => action.hideActions.asList()
-        });
-    }, true);
 }
 let MenuEntryActionViewItem = class MenuEntryActionViewItem extends ActionViewItem {
     constructor(action, options, _keybindingService, _notificationService, _contextKeyService, _themeService, _contextMenuService) {
@@ -184,7 +169,6 @@ let MenuEntryActionViewItem = class MenuEntryActionViewItem extends ActionViewIt
             mouseOver = true;
             updateAltState();
         }));
-        this._register(registerConfigureMenu(this._contextMenuService, this, this._menuItemAction));
     }
     updateLabel() {
         if (this.options.label && this.label) {
@@ -223,13 +207,12 @@ let MenuEntryActionViewItem = class MenuEntryActionViewItem extends ActionViewIt
         }
     }
     _updateItemClass(item) {
-        var _a;
         this._itemClassDispose.value = undefined;
         const { element, label } = this;
         if (!element || !label) {
             return;
         }
-        const icon = this._commandAction.checked && ((_a = item.toggled) === null || _a === void 0 ? void 0 : _a.icon) ? item.toggled.icon : item.icon;
+        const icon = this._commandAction.checked && isICommandActionToggleInfo(item.toggled) && item.toggled.icon ? item.toggled.icon : item.icon;
         if (!icon) {
             return;
         }
@@ -297,7 +280,6 @@ let SubmenuEntryActionViewItem = class SubmenuEntryActionViewItem extends Dropdo
                 setBackgroundImage();
             }));
         }
-        this._register(registerConfigureMenu(this._contextMenuService, this, action));
     }
 };
 SubmenuEntryActionViewItem = __decorate([
@@ -397,7 +379,6 @@ let DropdownWithDefaultActionViewItem = class DropdownWithDefaultActionViewItem 
                 event.stopPropagation();
             }
         }));
-        this._register(registerConfigureMenu(this._contextMenuService, this, this.action));
     }
     focus(fromRight) {
         if (fromRight) {
@@ -437,6 +418,33 @@ DropdownWithDefaultActionViewItem = __decorate([
     __param(7, IStorageService)
 ], DropdownWithDefaultActionViewItem);
 export { DropdownWithDefaultActionViewItem };
+let SubmenuEntrySelectActionViewItem = class SubmenuEntrySelectActionViewItem extends SelectActionViewItem {
+    constructor(action, themeService, contextViewService) {
+        super(null, action, action.actions.map(a => ({
+            text: a.id === Separator.ID ? '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500' : a.label,
+            isDisabled: !a.enabled,
+        })), 0, contextViewService, { ariaLabel: action.tooltip, optionsAsChildren: true });
+        this.themeService = themeService;
+        this._register(attachSelectBoxStyler(this.selectBox, themeService));
+        this.select(Math.max(0, action.actions.findIndex(a => a.checked)));
+    }
+    render(container) {
+        super.render(container);
+        this._register(attachStylerCallback(this.themeService, { selectBorder }, colors => {
+            container.style.borderColor = colors.selectBorder ? `${colors.selectBorder}` : '';
+        }));
+    }
+    runAction(option, index) {
+        const action = this.action.actions[index];
+        if (action) {
+            this.actionRunner.run(action);
+        }
+    }
+};
+SubmenuEntrySelectActionViewItem = __decorate([
+    __param(1, IThemeService),
+    __param(2, IContextViewService)
+], SubmenuEntrySelectActionViewItem);
 /**
  * Creates action view items for menu actions or submenu actions.
  */
@@ -445,11 +453,16 @@ export function createActionViewItem(instaService, action, options) {
         return instaService.createInstance(MenuEntryActionViewItem, action, options);
     }
     else if (action instanceof SubmenuItemAction) {
-        if (action.item.rememberDefaultAction) {
-            return instaService.createInstance(DropdownWithDefaultActionViewItem, action, options);
+        if (action.item.isSelection) {
+            return instaService.createInstance(SubmenuEntrySelectActionViewItem, action);
         }
         else {
-            return instaService.createInstance(SubmenuEntryActionViewItem, action, options);
+            if (action.item.rememberDefaultAction) {
+                return instaService.createInstance(DropdownWithDefaultActionViewItem, action, options);
+            }
+            else {
+                return instaService.createInstance(SubmenuEntryActionViewItem, action, options);
+            }
         }
     }
     else {

@@ -18,7 +18,7 @@ export class PageCoordinates {
         this._pageCoordinatesBrand = undefined;
     }
     toClientCoordinates() {
-        return new ClientCoordinates(this.x - dom.StandardWindow.scrollX, this.y - dom.StandardWindow.scrollY);
+        return new ClientCoordinates(this.x - window.scrollX, this.y - window.scrollY);
     }
 }
 /**
@@ -35,7 +35,7 @@ export class ClientCoordinates {
         this._clientCoordinatesBrand = undefined;
     }
     toPageCoordinates() {
-        return new PageCoordinates(this.clientX + dom.StandardWindow.scrollX, this.clientY + dom.StandardWindow.scrollY);
+        return new PageCoordinates(this.clientX + window.scrollX, this.clientY + window.scrollY);
     }
 }
 /**

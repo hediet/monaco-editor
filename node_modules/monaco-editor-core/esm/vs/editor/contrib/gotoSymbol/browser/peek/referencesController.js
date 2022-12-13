@@ -41,6 +41,9 @@ import { OneReference } from '../referencesModel.js';
 import { LayoutData, ReferenceWidget } from './referencesWidget.js';
 export const ctxReferenceSearchVisible = new RawContextKey('referenceSearchVisible', false, nls.localize('referenceSearchVisible', "Whether reference peek is visible, like 'Peek References' or 'Peek Definition'"));
 let ReferencesController = class ReferencesController {
+    static get(editor) {
+        return editor.getContribution(ReferencesController.ID);
+    }
     constructor(_defaultTreeKeyboardSupport, _editor, contextKeyService, _editorService, _notificationService, _instantiationService, _storageService, _configurationService) {
         this._defaultTreeKeyboardSupport = _defaultTreeKeyboardSupport;
         this._editor = _editor;
@@ -53,9 +56,6 @@ let ReferencesController = class ReferencesController {
         this._requestIdPool = 0;
         this._ignoreModelChangeEvent = false;
         this._referenceSearchVisible = ctxReferenceSearchVisible.bindTo(contextKeyService);
-    }
-    static get(editor) {
-        return editor.getContribution(ReferencesController.ID);
     }
     dispose() {
         var _a, _b;
@@ -224,9 +224,8 @@ let ReferencesController = class ReferencesController {
         this._requestIdPool += 1; // Cancel pending requests
     }
     _gotoReference(ref) {
-        if (this._widget) {
-            this._widget.hide();
-        }
+        var _a;
+        (_a = this._widget) === null || _a === void 0 ? void 0 : _a.hide();
         this._ignoreModelChangeEvent = true;
         const range = Range.lift(ref.range).collapseToStart();
         return this._editorService.openCodeEditor({

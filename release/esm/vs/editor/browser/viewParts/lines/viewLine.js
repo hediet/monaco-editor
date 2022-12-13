@@ -34,13 +34,6 @@ const canUseFastRenderedViewLine = (function () {
 })();
 let monospaceAssumptionsAreValid = true;
 export class DomReadingContext {
-    constructor(domNode, endNode) {
-        this._domNode = domNode;
-        this._clientRectDeltaLeft = 0;
-        this._clientRectScale = 1;
-        this._clientRectRead = false;
-        this.endNode = endNode;
-    }
     readClientRect() {
         if (!this._clientRectRead) {
             this._clientRectRead = true;
@@ -61,6 +54,13 @@ export class DomReadingContext {
         }
         return this._clientRectScale;
     }
+    constructor(domNode, endNode) {
+        this._domNode = domNode;
+        this._clientRectDeltaLeft = 0;
+        this._clientRectScale = 1;
+        this._clientRectRead = false;
+        this.endNode = endNode;
+    }
 }
 export class ViewLineOptions {
     constructor(config, themeType) {
@@ -76,7 +76,7 @@ export class ViewLineOptions {
             && !options.get(29 /* EditorOption.disableMonospaceOptimizations */));
         this.canUseHalfwidthRightwardsArrow = fontInfo.canUseHalfwidthRightwardsArrow;
         this.lineHeight = options.get(60 /* EditorOption.lineHeight */);
-        this.stopRenderingLineAfter = options.get(106 /* EditorOption.stopRenderingLineAfter */);
+        this.stopRenderingLineAfter = options.get(107 /* EditorOption.stopRenderingLineAfter */);
         this.fontLigatures = options.get(46 /* EditorOption.fontLigatures */);
     }
     equals(other) {

@@ -81,12 +81,12 @@ export class BeforeEditPositionMapper {
     }
 }
 class TextEditInfoCache {
+    static from(edit) {
+        return new TextEditInfoCache(edit.startOffset, edit.endOffset, edit.newLength);
+    }
     constructor(startOffset, endOffset, textLength) {
         this.endOffsetBeforeObj = lengthToObj(endOffset);
         this.endOffsetAfterObj = lengthToObj(lengthAdd(startOffset, textLength));
         this.offsetObj = lengthToObj(startOffset);
-    }
-    static from(edit) {
-        return new TextEditInfoCache(edit.startOffset, edit.endOffset, edit.newLength);
     }
 }

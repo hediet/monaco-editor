@@ -39,16 +39,30 @@ import { SearchParams, TextModelSearch } from './textModelSearch.js';
 import { TokenizationTextModelPart } from './tokenizationTextModelPart.js';
 import { InternalModelContentChangeEvent, LineInjectedText, ModelInjectedTextChangedEvent, ModelRawContentChangedEvent, ModelRawEOLChanged, ModelRawFlush, ModelRawLineChanged, ModelRawLinesDeleted, ModelRawLinesInserted } from '../textModelEvents.js';
 import { IUndoRedoService } from '../../../platform/undoRedo/common/undoRedo.js';
-function createTextBufferBuilder() {
-    return new PieceTreeTextBufferBuilder();
-}
 export function createTextBufferFactory(text) {
-    const builder = createTextBufferBuilder();
+    const builder = new PieceTreeTextBufferBuilder();
     builder.acceptChunk(text);
     return builder.finish();
 }
+export function createTextBufferFactoryFromSnapshot(snapshot) {
+    const builder = new PieceTreeTextBufferBuilder();
+    let chunk;
+    while (typeof (chunk = snapshot.read()) === 'string') {
+        builder.acceptChunk(chunk);
+    }
+    return builder.finish();
+}
 export function createTextBuffer(value, defaultEOL) {
-    const factory = (typeof value === 'string' ? createTextBufferFactory(value) : value);
+    let factory;
+    if (typeof value === 'string') {
+        factory = createTextBufferFactory(value);
+    }
+    else if (model.isITextSnapshot(value)) {
+        factory = createTextBufferFactoryFromSnapshot(value);
+    }
+    else {
+        factory = value;
+    }
     return factory.create(defaultEOL);
 }
 let MODEL_ID = 0;
@@ -90,6 +104,40 @@ class TextModelSnapshot {
 }
 const invalidFunc = () => { throw new Error(`Invalid change accessor`); };
 let TextModel = class TextModel extends Disposable {
+    static resolveOptions(textBuffer, options) {
+        if (options.detectIndentation) {
+            const guessedIndentation = guessIndentation(textBuffer, options.tabSize, options.insertSpaces);
+            return new model.TextModelResolvedOptions({
+                tabSize: guessedIndentation.tabSize,
+                indentSize: guessedIndentation.tabSize,
+                insertSpaces: guessedIndentation.insertSpaces,
+                trimAutoWhitespace: options.trimAutoWhitespace,
+                defaultEOL: options.defaultEOL,
+                bracketPairColorizationOptions: options.bracketPairColorizationOptions,
+            });
+        }
+        return new model.TextModelResolvedOptions({
+            tabSize: options.tabSize,
+            indentSize: options.indentSize,
+            insertSpaces: options.insertSpaces,
+            trimAutoWhitespace: options.trimAutoWhitespace,
+            defaultEOL: options.defaultEOL,
+            bracketPairColorizationOptions: options.bracketPairColorizationOptions,
+        });
+    }
+    get onDidChangeLanguage() { return this._tokenizationTextModelPart.onDidChangeLanguage; }
+    get onDidChangeLanguageConfiguration() { return this._tokenizationTextModelPart.onDidChangeLanguageConfiguration; }
+    get onDidChangeTokens() { return this._tokenizationTextModelPart.onDidChangeTokens; }
+    onDidChangeContent(listener) {
+        return this._eventEmitter.slowEvent((e) => listener(e.contentChangedEvent));
+    }
+    onDidChangeContentOrInjectedText(listener) {
+        return combinedDisposable(this._eventEmitter.fastEvent(e => listener(e)), this._onDidChangeInjectedText.event(e => listener(e)));
+    }
+    _isDisposing() { return this.__isDisposing; }
+    get tokenization() { return this._tokenizationTextModelPart; }
+    get bracketPairs() { return this._bracketPairs; }
+    get guides() { return this._guidesTextModelPart; }
     constructor(source, languageId, creationOptions, associatedResource = null, _undoRedoService, _languageService, _languageConfigurationService) {
         super();
         this._undoRedoService = _undoRedoService;
@@ -158,40 +206,6 @@ let TextModel = class TextModel extends Disposable {
             this._onDidChangeDecorations.endDeferredEmit();
         }));
     }
-    static resolveOptions(textBuffer, options) {
-        if (options.detectIndentation) {
-            const guessedIndentation = guessIndentation(textBuffer, options.tabSize, options.insertSpaces);
-            return new model.TextModelResolvedOptions({
-                tabSize: guessedIndentation.tabSize,
-                indentSize: guessedIndentation.tabSize,
-                insertSpaces: guessedIndentation.insertSpaces,
-                trimAutoWhitespace: options.trimAutoWhitespace,
-                defaultEOL: options.defaultEOL,
-                bracketPairColorizationOptions: options.bracketPairColorizationOptions,
-            });
-        }
-        return new model.TextModelResolvedOptions({
-            tabSize: options.tabSize,
-            indentSize: options.indentSize,
-            insertSpaces: options.insertSpaces,
-            trimAutoWhitespace: options.trimAutoWhitespace,
-            defaultEOL: options.defaultEOL,
-            bracketPairColorizationOptions: options.bracketPairColorizationOptions,
-        });
-    }
-    get onDidChangeLanguage() { return this._tokenizationTextModelPart.onDidChangeLanguage; }
-    get onDidChangeLanguageConfiguration() { return this._tokenizationTextModelPart.onDidChangeLanguageConfiguration; }
-    get onDidChangeTokens() { return this._tokenizationTextModelPart.onDidChangeTokens; }
-    onDidChangeContent(listener) {
-        return this._eventEmitter.slowEvent((e) => listener(e.contentChangedEvent));
-    }
-    onDidChangeContentOrInjectedText(listener) {
-        return combinedDisposable(this._eventEmitter.fastEvent(e => listener(e)), this._onDidChangeInjectedText.event(e => listener(e)));
-    }
-    _isDisposing() { return this.__isDisposing; }
-    get tokenization() { return this._tokenizationTextModelPart; }
-    get bracketPairs() { return this._bracketPairs; }
-    get guides() { return this._guidesTextModelPart; }
     dispose() {
         this.__isDisposing = true;
         this._onWillDispose.fire();
@@ -1241,10 +1255,10 @@ let TextModel = class TextModel extends Disposable {
         pushMany(decorations, this._decorationProvider.getDecorationsInRange(range, ownerId, filterOutValidation));
         return decorations;
     }
-    getDecorationsInRange(range, ownerId = 0, filterOutValidation = false) {
+    getDecorationsInRange(range, ownerId = 0, filterOutValidation = false, onlyMinimapDecorations = false) {
         const validatedRange = this.validateRange(range);
         const decorations = this._getDecorationsInRange(validatedRange, ownerId, filterOutValidation);
-        pushMany(decorations, this._decorationProvider.getDecorationsInRange(validatedRange, ownerId, filterOutValidation));
+        pushMany(decorations, this._decorationProvider.getDecorationsInRange(validatedRange, ownerId, filterOutValidation, onlyMinimapDecorations));
         return decorations;
     }
     getOverviewRulerDecorations(ownerId = 0, filterOutValidation = false) {
@@ -1396,8 +1410,8 @@ let TextModel = class TextModel extends Disposable {
     getLanguageId() {
         return this.tokenization.getLanguageId();
     }
-    setMode(languageId) {
-        this.tokenization.setLanguageId(languageId);
+    setMode(languageId, source) {
+        this.tokenization.setLanguageId(languageId, source);
     }
     getLanguageIdAtPosition(lineNumber, column) {
         return this.tokenization.getLanguageIdAtPosition(lineNumber, column);
@@ -1642,6 +1656,12 @@ export class ModelDecorationMinimapOptions extends DecorationOptions {
     }
 }
 export class ModelDecorationInjectedTextOptions {
+    static from(options) {
+        if (options instanceof ModelDecorationInjectedTextOptions) {
+            return options;
+        }
+        return new ModelDecorationInjectedTextOptions(options);
+    }
     constructor(options) {
         this.content = options.content || '';
         this.inlineClassName = options.inlineClassName || null;
@@ -1649,18 +1669,19 @@ export class ModelDecorationInjectedTextOptions {
         this.attachedData = options.attachedData || null;
         this.cursorStops = options.cursorStops || null;
     }
-    static from(options) {
-        if (options instanceof ModelDecorationInjectedTextOptions) {
-            return options;
-        }
-        return new ModelDecorationInjectedTextOptions(options);
-    }
 }
 export class ModelDecorationOptions {
+    static register(options) {
+        return new ModelDecorationOptions(options);
+    }
+    static createDynamic(options) {
+        return new ModelDecorationOptions(options);
+    }
     constructor(options) {
-        var _a, _b;
+        var _a, _b, _c;
         this.description = options.description;
         this.blockClassName = options.blockClassName ? cleanClassName(options.blockClassName) : null;
+        this.blockIsAfterEnd = (_a = options.blockIsAfterEnd) !== null && _a !== void 0 ? _a : null;
         this.stickiness = options.stickiness || 0 /* model.TrackedRangeStickiness.AlwaysGrowsWhenTypingAtEdges */;
         this.zIndex = options.zIndex || 0;
         this.className = options.className ? cleanClassName(options.className) : null;
@@ -1681,14 +1702,8 @@ export class ModelDecorationOptions {
         this.afterContentClassName = options.afterContentClassName ? cleanClassName(options.afterContentClassName) : null;
         this.after = options.after ? ModelDecorationInjectedTextOptions.from(options.after) : null;
         this.before = options.before ? ModelDecorationInjectedTextOptions.from(options.before) : null;
-        this.hideInCommentTokens = (_a = options.hideInCommentTokens) !== null && _a !== void 0 ? _a : false;
-        this.hideInStringTokens = (_b = options.hideInStringTokens) !== null && _b !== void 0 ? _b : false;
-    }
-    static register(options) {
-        return new ModelDecorationOptions(options);
-    }
-    static createDynamic(options) {
-        return new ModelDecorationOptions(options);
+        this.hideInCommentTokens = (_b = options.hideInCommentTokens) !== null && _b !== void 0 ? _b : false;
+        this.hideInStringTokens = (_c = options.hideInStringTokens) !== null && _c !== void 0 ? _c : false;
     }
 }
 ModelDecorationOptions.EMPTY = ModelDecorationOptions.register({ description: 'empty' });

@@ -21,7 +21,7 @@ import { EditorFontLigatures } from '../../../common/config/editorOptions.js';
 import { LineTokens } from '../../../common/tokens/lineTokens.js';
 import { Position } from '../../../common/core/position.js';
 import { Range } from '../../../common/core/range.js';
-import { createStringBuilder } from '../../../common/core/stringBuilder.js';
+import { StringBuilder } from '../../../common/core/stringBuilder.js';
 import { InjectedTextCursorStops } from '../../../common/model.js';
 import { ILanguageService } from '../../../common/languages/language.js';
 import { ghostTextBackground, ghostTextBorder, ghostTextForeground } from '../../../common/core/editorColorRegistry.js';
@@ -45,7 +45,7 @@ let GhostTextWidget = class GhostTextWidget extends Disposable {
         this.replacementDecoration = this._register(new DisposableDecorations(this.editor));
         this._register(this.editor.onDidChangeConfiguration((e) => {
             if (e.hasChanged(29 /* EditorOption.disableMonospaceOptimizations */)
-                || e.hasChanged(106 /* EditorOption.stopRenderingLineAfter */)
+                || e.hasChanged(107 /* EditorOption.stopRenderingLineAfter */)
                 || e.hasChanged(89 /* EditorOption.renderWhitespace */)
                 || e.hasChanged(84 /* EditorOption.renderControlCharacters */)
                 || e.hasChanged(46 /* EditorOption.fontLigatures */)
@@ -243,12 +243,12 @@ class DecorationsWidget {
     }
 }
 class AdditionalLinesWidget {
+    get viewZoneId() { return this._viewZoneId; }
     constructor(editor, languageIdCodec) {
         this.editor = editor;
         this.languageIdCodec = languageIdCodec;
         this._viewZoneId = undefined;
     }
-    get viewZoneId() { return this._viewZoneId; }
     dispose() {
         this.clear();
     }
@@ -287,14 +287,14 @@ class AdditionalLinesWidget {
 }
 function renderLines(domNode, tabSize, lines, opts, languageIdCodec) {
     const disableMonospaceOptimizations = opts.get(29 /* EditorOption.disableMonospaceOptimizations */);
-    const stopRenderingLineAfter = opts.get(106 /* EditorOption.stopRenderingLineAfter */);
+    const stopRenderingLineAfter = opts.get(107 /* EditorOption.stopRenderingLineAfter */);
     // To avoid visual confusion, we don't want to render visible whitespace
     const renderWhitespace = 'none';
     const renderControlCharacters = opts.get(84 /* EditorOption.renderControlCharacters */);
     const fontLigatures = opts.get(46 /* EditorOption.fontLigatures */);
     const fontInfo = opts.get(45 /* EditorOption.fontInfo */);
     const lineHeight = opts.get(60 /* EditorOption.lineHeight */);
-    const sb = createStringBuilder(10000);
+    const sb = new StringBuilder(10000);
     sb.appendASCIIString('<div class="suggest-preview-text">');
     for (let i = 0, len = lines.length; i < len; i++) {
         const lineData = lines[i];

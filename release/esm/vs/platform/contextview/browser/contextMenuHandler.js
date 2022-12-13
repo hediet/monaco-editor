@@ -56,7 +56,7 @@ export class ContextMenuHandler {
                 }
                 const menuDisposables = new DisposableStore();
                 const actionRunner = delegate.actionRunner || new ActionRunner();
-                actionRunner.onBeforeRun(this.onActionRun, this, menuDisposables);
+                actionRunner.onWillRun(this.onActionRun, this, menuDisposables);
                 actionRunner.onDidRun(this.onDidActionRun, this, menuDisposables);
                 menu = new Menu(container, actions, {
                     actionViewItemProvider: delegate.getActionViewItem,
@@ -92,25 +92,22 @@ export class ContextMenuHandler {
                 menu === null || menu === void 0 ? void 0 : menu.focus(!!delegate.autoSelectFirstItem);
             },
             onHide: (didCancel) => {
-                var _a;
+                var _a, _b;
                 (_a = delegate.onHide) === null || _a === void 0 ? void 0 : _a.call(delegate, !!didCancel);
                 if (this.block) {
                     this.block.remove();
                     this.block = null;
                 }
-                if (this.focusToReturn) {
-                    this.focusToReturn.focus();
-                }
+                (_b = this.focusToReturn) === null || _b === void 0 ? void 0 : _b.focus();
             }
         }, shadowRootElement, !!shadowRootElement);
     }
     onActionRun(e) {
+        var _a;
         this.telemetryService.publicLog2('workbenchActionExecuted', { id: e.action.id, from: 'contextMenu' });
         this.contextViewService.hideContextView(false);
         // Restore focus here
-        if (this.focusToReturn) {
-            this.focusToReturn.focus();
-        }
+        (_a = this.focusToReturn) === null || _a === void 0 ? void 0 : _a.focus();
     }
     onDidActionRun(e) {
         if (e.error && !isCancellationError(e.error)) {

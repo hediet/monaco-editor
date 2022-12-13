@@ -27,10 +27,11 @@ import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { ILanguageFeaturesService } from '../../../common/services/languageFeatures.js';
 const $ = dom.$;
 export class MarkdownHover {
-    constructor(owner, range, contents, ordinal) {
+    constructor(owner, range, contents, isBeforeContent, ordinal) {
         this.owner = owner;
         this.range = range;
         this.contents = contents;
+        this.isBeforeContent = isBeforeContent;
         this.ordinal = ordinal;
     }
     isValidForHoverAnchor(anchor) {
@@ -49,7 +50,7 @@ let MarkdownHoverParticipant = class MarkdownHoverParticipant {
         this.hoverOrdinal = 2;
     }
     createLoadingMessage(anchor) {
-        return new MarkdownHover(this, anchor.range, [new MarkdownString().appendText(nls.localize('modesContentHover.loading', "Loading..."))], 2000);
+        return new MarkdownHover(this, anchor.range, [new MarkdownString().appendText(nls.localize('modesContentHover.loading', "Loading..."))], false, 2000);
     }
     computeSync(anchor, lineDecorations) {
         if (!this._editor.hasModel() || anchor.type !== 1 /* HoverAnchorType.Range */) {
@@ -68,8 +69,9 @@ let MarkdownHoverParticipant = class MarkdownHoverParticipant {
         if (typeof maxTokenizationLineLength === 'number' && lineLength >= maxTokenizationLineLength) {
             result.push(new MarkdownHover(this, anchor.range, [{
                     value: nls.localize('too many characters', "Tokenization is skipped for long lines for performance reasons. This can be configured via `editor.maxTokenizationLineLength`.")
-                }], index++));
+                }], false, index++));
         }
+        let isBeforeContent = false;
         for (const d of lineDecorations) {
             const startColumn = (d.range.startLineNumber === lineNumber) ? d.range.startColumn : 1;
             const endColumn = (d.range.endLineNumber === lineNumber) ? d.range.endColumn : maxColumn;
@@ -77,8 +79,11 @@ let MarkdownHoverParticipant = class MarkdownHoverParticipant {
             if (!hoverMessage || isEmptyMarkdownString(hoverMessage)) {
                 continue;
             }
+            if (d.options.beforeContentClassName) {
+                isBeforeContent = true;
+            }
             const range = new Range(anchor.range.startLineNumber, startColumn, anchor.range.startLineNumber, endColumn);
-            result.push(new MarkdownHover(this, range, asArray(hoverMessage), index++));
+            result.push(new MarkdownHover(this, range, asArray(hoverMessage), isBeforeContent, index++));
         }
         return result;
     }
@@ -95,7 +100,7 @@ let MarkdownHoverParticipant = class MarkdownHoverParticipant {
             .filter(item => !isEmptyMarkdownString(item.hover.contents))
             .map(item => {
             const rng = item.hover.range ? Range.lift(item.hover.range) : anchor.range;
-            return new MarkdownHover(this, rng, item.hover.contents, item.ordinal);
+            return new MarkdownHover(this, rng, item.hover.contents, false, item.ordinal);
         });
     }
     renderHoverParts(context, hoverParts) {

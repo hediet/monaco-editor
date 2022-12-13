@@ -25,6 +25,9 @@ import { IContextMenuService, IContextViewService } from '../../../../platform/c
 import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
 let ContextMenuController = class ContextMenuController {
+    static get(editor) {
+        return editor.getContribution(ContextMenuController.ID);
+    }
     constructor(editor, _contextMenuService, _contextViewService, _contextKeyService, _keybindingService, _menuService, _configurationService) {
         this._contextMenuService = _contextMenuService;
         this._contextViewService = _contextViewService;
@@ -58,9 +61,6 @@ let ContextMenuController = class ContextMenuController {
                 this.showContextMenu();
             }
         }));
-    }
-    static get(editor) {
-        return editor.getContribution(ContextMenuController.ID);
     }
     _onContextMenu(e) {
         if (!this._editor.hasModel()) {
@@ -179,7 +179,7 @@ let ContextMenuController = class ContextMenuController {
             const posy = editorCoords.top + cursorCoords.top + cursorCoords.height;
             anchor = { x: posx, y: posy };
         }
-        const useShadowDOM = this._editor.getOption(116 /* EditorOption.useShadowDOM */) && !isIOS; // Do not use shadow dom on IOS #122035
+        const useShadowDOM = this._editor.getOption(117 /* EditorOption.useShadowDOM */) && !isIOS; // Do not use shadow dom on IOS #122035
         // Show menu
         this._contextMenuIsBeingShownCount++;
         this._contextMenuService.showContextMenu({
@@ -223,8 +223,7 @@ let ContextMenuController = class ContextMenuController {
                 class: undefined,
                 enabled: (typeof opts.enabled === 'undefined' ? true : opts.enabled),
                 checked: opts.checked,
-                run: opts.run,
-                dispose: () => null
+                run: opts.run
             };
         };
         const createSubmenuAction = (label, actions) => {
@@ -251,7 +250,7 @@ let ContextMenuController = class ContextMenuController {
         };
         const actions = [];
         actions.push(createAction({
-            label: nls.localize('context.minimap.showMinimap', "Show Minimap"),
+            label: nls.localize('context.minimap.minimap', "Minimap"),
             checked: minimapOptions.enabled,
             run: () => {
                 this._configurationService.updateValue(`editor.minimap.enabled`, !minimapOptions.enabled);
@@ -266,7 +265,7 @@ let ContextMenuController = class ContextMenuController {
                 this._configurationService.updateValue(`editor.minimap.renderCharacters`, !minimapOptions.renderCharacters);
             }
         }));
-        actions.push(createEnumAction(nls.localize('context.minimap.size', "Size"), minimapOptions.enabled, 'editor.minimap.size', minimapOptions.size, [{
+        actions.push(createEnumAction(nls.localize('context.minimap.size', "Vertical size"), minimapOptions.enabled, 'editor.minimap.size', minimapOptions.size, [{
                 label: nls.localize('context.minimap.size.proportional', "Proportional"),
                 value: 'proportional'
             }, {
@@ -276,16 +275,6 @@ let ContextMenuController = class ContextMenuController {
                 label: nls.localize('context.minimap.size.fit', "Fit"),
                 value: 'fit'
             }]));
-        actions.push(createEnumAction(nls.localize('context.minimap.scale', "Scale"), minimapOptions.enabled, 'editor.minimap.scale', minimapOptions.scale, [{
-                label: nls.localize('context.minimap.scale.1', "1"),
-                value: 1
-            }, {
-                label: nls.localize('context.minimap.scale.2', "2"),
-                value: 2
-            }, {
-                label: nls.localize('context.minimap.scale.3', "3"),
-                value: 3
-            }]));
         actions.push(createEnumAction(nls.localize('context.minimap.slider', "Slider"), minimapOptions.enabled, 'editor.minimap.showSlider', minimapOptions.showSlider, [{
                 label: nls.localize('context.minimap.slider.mouseover', "Mouse Over"),
                 value: 'mouseover'
@@ -293,7 +282,7 @@ let ContextMenuController = class ContextMenuController {
                 label: nls.localize('context.minimap.slider.always', "Always"),
                 value: 'always'
             }]));
-        const useShadowDOM = this._editor.getOption(116 /* EditorOption.useShadowDOM */) && !isIOS; // Do not use shadow dom on IOS #122035
+        const useShadowDOM = this._editor.getOption(117 /* EditorOption.useShadowDOM */) && !isIOS; // Do not use shadow dom on IOS #122035
         this._contextMenuIsBeingShownCount++;
         this._contextMenuService.showContextMenu({
             domForShadowRoot: useShadowDOM ? this._editor.getDomNode() : undefined,

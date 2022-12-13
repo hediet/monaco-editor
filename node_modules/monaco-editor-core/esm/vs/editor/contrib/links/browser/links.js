@@ -43,6 +43,9 @@ import { IOpenerService } from '../../../../platform/opener/common/opener.js';
 import { editorActiveLinkForeground } from '../../../../platform/theme/common/colorRegistry.js';
 import { registerThemingParticipant } from '../../../../platform/theme/common/themeService.js';
 let LinkDetector = class LinkDetector extends Disposable {
+    static get(editor) {
+        return editor.getContribution(LinkDetector.ID);
+    }
     constructor(editor, openerService, notificationService, languageFeaturesService, languageFeatureDebounceService) {
         super();
         this.editor = editor;
@@ -98,9 +101,6 @@ let LinkDetector = class LinkDetector extends Disposable {
             this.computeLinks.schedule(0);
         }));
         this.computeLinks.schedule(0);
-    }
-    static get(editor) {
-        return editor.getContribution(LinkDetector.ID);
     }
     computeLinksNow() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -222,7 +222,7 @@ let LinkDetector = class LinkDetector extends Disposable {
                     }
                 }
             }
-            return this.openerService.open(uri, { openToSide, fromUserGesture, allowContributedOpeners: true, allowCommands: true });
+            return this.openerService.open(uri, { openToSide, fromUserGesture, allowContributedOpeners: true, allowCommands: true, fromWorkspace: true });
         }, err => {
             const messageOrError = err instanceof Error ? err.message : err;
             // different error cases
@@ -299,10 +299,6 @@ const decoration = {
     })
 };
 class LinkOccurrence {
-    constructor(link, decorationId) {
-        this.link = link;
-        this.decorationId = decorationId;
-    }
     static decoration(link, useMetaKey) {
         return {
             range: link.range,
@@ -313,6 +309,10 @@ class LinkOccurrence {
         const options = Object.assign({}, (isActive ? decoration.active : decoration.general));
         options.hoverMessage = getHoverMessage(link, useMetaKey);
         return options;
+    }
+    constructor(link, decorationId) {
+        this.link = link;
+        this.decorationId = decorationId;
     }
     activate(changeAccessor, useMetaKey) {
         changeAccessor.changeDecorationOptions(this.decorationId, LinkOccurrence._getOptions(this.link, useMetaKey, true));

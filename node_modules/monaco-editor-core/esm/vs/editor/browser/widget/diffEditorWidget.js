@@ -29,10 +29,9 @@ import { DiffReview } from './diffReview.js';
 import { EditorOptions, EditorFontLigatures, stringSet as validateStringSetOption, boolean as validateBooleanOption, clampedInt } from '../../common/config/editorOptions.js';
 import { Position } from '../../common/core/position.js';
 import { Range } from '../../common/core/range.js';
-import { createStringBuilder } from '../../common/core/stringBuilder.js';
+import { StringBuilder } from '../../common/core/stringBuilder.js';
 import * as editorCommon from '../../common/editorCommon.js';
 import { ModelDecorationOptions } from '../../common/model/textModel.js';
-import { IEditorWorkerService } from '../../common/services/editorWorker.js';
 import { OverviewRulerZone } from '../../common/viewModel/overviewZoneManager.js';
 import { LineDecoration } from '../../common/viewLayout/lineDecorations.js';
 import { RenderLineInput, renderViewLine } from '../../common/viewLayout/viewLineRenderer.js';
@@ -54,6 +53,7 @@ import { Codicon } from '../../../base/common/codicons.js';
 import { MOUSE_CURSOR_TEXT_CSS_CLASS_NAME } from '../../../base/browser/ui/mouseCursor/mouseCursor.js';
 import { registerIcon } from '../../../platform/theme/common/iconRegistry.js';
 import { isHighContrast } from '../../../platform/theme/common/theme.js';
+import { WorkerBasedDocumentDiffProvider } from './workerBasedDocumentDiffProvider.js';
 class VisualEditorState {
     constructor(_contextMenuService, _clipboardService) {
         this._contextMenuService = _contextMenuService;
@@ -124,18 +124,21 @@ let DIFF_EDITOR_ID = 0;
 const diffInsertIcon = registerIcon('diff-insert', Codicon.add, nls.localize('diffInsertIcon', 'Line decoration for inserts in the diff editor.'));
 const diffRemoveIcon = registerIcon('diff-remove', Codicon.remove, nls.localize('diffRemoveIcon', 'Line decoration for removals in the diff editor.'));
 const ttPolicy = (_a = window.trustedTypes) === null || _a === void 0 ? void 0 : _a.createPolicy('diffEditorWidget', { createHTML: value => value });
+const ariaNavigationTip = nls.localize('diff-aria-navigation-tip', ' use Shift + F7 to navigate changes');
 let DiffEditorWidget = class DiffEditorWidget extends Disposable {
-    constructor(domElement, options, codeEditorWidgetOptions, clipboardService, editorWorkerService, contextKeyService, instantiationService, codeEditorService, themeService, notificationService, contextMenuService, _editorProgressService) {
+    constructor(domElement, options, codeEditorWidgetOptions, clipboardService, contextKeyService, instantiationService, codeEditorService, themeService, notificationService, contextMenuService, _editorProgressService) {
         super();
         this._editorProgressService = _editorProgressService;
         this._onDidDispose = this._register(new Emitter());
         this.onDidDispose = this._onDidDispose.event;
+        this._onDidChangeModel = this._register(new Emitter());
+        this.onDidChangeModel = this._onDidChangeModel.event;
         this._onDidUpdateDiff = this._register(new Emitter());
         this.onDidUpdateDiff = this._onDidUpdateDiff.event;
         this._onDidContentSizeChange = this._register(new Emitter());
         this._lastOriginalWarning = null;
         this._lastModifiedWarning = null;
-        this._editorWorkerService = editorWorkerService;
+        this._documentDiffProvider = instantiationService.createInstance(WorkerBasedDocumentDiffProvider);
         this._codeEditorService = codeEditorService;
         this._contextKeyService = this._register(contextKeyService.createScoped(domElement));
         this._instantiationService = instantiationService.createChild(new ServiceCollection([IContextKeyService, this._contextKeyService]));
@@ -158,7 +161,8 @@ let DiffEditorWidget = class DiffEditorWidget extends Disposable {
             originalEditable: false,
             diffCodeLens: false,
             renderOverviewRuler: true,
-            diffWordWrap: 'inherit'
+            diffWordWrap: 'inherit',
+            diffAlgorithm: 'smart',
         });
         if (typeof options.isInEmbeddedEditor !== 'undefined') {
             this._contextKeyService.createKey('isInEmbeddedDiffEditor', options.isInEmbeddedEditor);
@@ -322,7 +326,7 @@ let DiffEditorWidget = class DiffEditorWidget extends Disposable {
             if (e.hasChanged(45 /* EditorOption.fontInfo */)) {
                 this._updateDecorationsRunner.schedule();
             }
-            if (e.hasChanged(133 /* EditorOption.wrappingInfo */)) {
+            if (e.hasChanged(134 /* EditorOption.wrappingInfo */)) {
                 this._updateDecorationsRunner.cancel();
                 this._updateDecorations();
             }
@@ -378,7 +382,7 @@ let DiffEditorWidget = class DiffEditorWidget extends Disposable {
             if (e.hasChanged(45 /* EditorOption.fontInfo */)) {
                 this._updateDecorationsRunner.schedule();
             }
-            if (e.hasChanged(133 /* EditorOption.wrappingInfo */)) {
+            if (e.hasChanged(134 /* EditorOption.wrappingInfo */)) {
                 this._updateDecorationsRunner.cancel();
                 this._updateDecorations();
             }
@@ -533,7 +537,7 @@ let DiffEditorWidget = class DiffEditorWidget extends Disposable {
         const changed = changedDiffEditorOptions(this._options, newOptions);
         this._options = newOptions;
         const beginUpdateDecorations = (changed.ignoreTrimWhitespace || changed.renderIndicators || changed.renderMarginRevertIcon);
-        const beginUpdateDecorationsSoon = (this._isVisible && (changed.maxComputationTime || changed.maxFileSize));
+        const beginUpdateDecorationsSoon = (this._isVisible && (changed.maxComputationTime || changed.maxFileSize || changed.diffAlgorithm));
         if (beginUpdateDecorations) {
             this._beginUpdateDecorations();
         }
@@ -598,6 +602,7 @@ let DiffEditorWidget = class DiffEditorWidget extends Disposable {
             this._beginUpdateDecorations();
         }
         this._layoutOverviewViewport();
+        this._onDidChangeModel.fire();
     }
     getContainerDomNode() {
         return this._domElement;
@@ -798,12 +803,63 @@ let DiffEditorWidget = class DiffEditorWidget extends Disposable {
             return;
         }
         this._setState(1 /* editorBrowser.DiffEditorState.ComputingDiff */);
-        this._editorWorkerService.computeDiff(currentOriginalModel.uri, currentModifiedModel.uri, this._options.ignoreTrimWhitespace, this._options.maxComputationTime).then((result) => {
+        this._documentDiffProvider.computeDiff(currentOriginalModel, currentModifiedModel, {
+            ignoreTrimWhitespace: this._options.ignoreTrimWhitespace,
+            maxComputationTime: this._options.maxComputationTime,
+            diffAlgorithm: this._options.diffAlgorithm,
+        }).then(result => {
             if (currentToken === this._diffComputationToken
                 && currentOriginalModel === this._originalEditor.getModel()
                 && currentModifiedModel === this._modifiedEditor.getModel()) {
                 this._setState(2 /* editorBrowser.DiffEditorState.DiffComputed */);
-                this._diffComputationResult = result;
+                this._diffComputationResult = {
+                    identical: result.identical,
+                    quitEarly: result.quitEarly,
+                    changes: result.changes.map(m => {
+                        // TODO don't do this translation, but use the diff result directly
+                        let originalStartLineNumber;
+                        let originalEndLineNumber;
+                        let modifiedStartLineNumber;
+                        let modifiedEndLineNumber;
+                        let innerChanges = m.innerChanges;
+                        if (m.originalRange.isEmpty) {
+                            // Insertion
+                            originalStartLineNumber = m.originalRange.startLineNumber - 1;
+                            originalEndLineNumber = 0;
+                            innerChanges = undefined;
+                        }
+                        else {
+                            originalStartLineNumber = m.originalRange.startLineNumber;
+                            originalEndLineNumber = m.originalRange.endLineNumberExclusive - 1;
+                        }
+                        if (m.modifiedRange.isEmpty) {
+                            // Deletion
+                            modifiedStartLineNumber = m.modifiedRange.startLineNumber - 1;
+                            modifiedEndLineNumber = 0;
+                            innerChanges = undefined;
+                        }
+                        else {
+                            modifiedStartLineNumber = m.modifiedRange.startLineNumber;
+                            modifiedEndLineNumber = m.modifiedRange.endLineNumberExclusive - 1;
+                        }
+                        return {
+                            originalStartLineNumber,
+                            originalEndLineNumber,
+                            modifiedStartLineNumber,
+                            modifiedEndLineNumber,
+                            charChanges: innerChanges === null || innerChanges === void 0 ? void 0 : innerChanges.map(m => ({
+                                originalStartLineNumber: m.originalRange.startLineNumber,
+                                originalStartColumn: m.originalRange.startColumn,
+                                originalEndLineNumber: m.originalRange.endLineNumber,
+                                originalEndColumn: m.originalRange.endColumn,
+                                modifiedStartLineNumber: m.modifiedRange.startLineNumber,
+                                modifiedStartColumn: m.modifiedRange.startColumn,
+                                modifiedEndLineNumber: m.modifiedRange.endLineNumber,
+                                modifiedEndColumn: m.modifiedRange.endColumn,
+                            }))
+                        };
+                    })
+                };
                 this._updateDecorationsRunner.schedule();
                 this._onDidUpdateDiff.fire();
             }
@@ -867,8 +923,9 @@ let DiffEditorWidget = class DiffEditorWidget extends Disposable {
         if (options.originalAriaLabel) {
             result.ariaLabel = options.originalAriaLabel;
         }
+        result.ariaLabel += ariaNavigationTip;
         result.readOnly = !this._options.originalEditable;
-        result.enableDropIntoEditor = !result.readOnly;
+        result.dropIntoEditor = { enabled: !result.readOnly };
         result.extraEditorClassName = 'original-in-monaco-diff-editor';
         return Object.assign(Object.assign({}, result), { dimension: {
                 height: 0,
@@ -880,6 +937,7 @@ let DiffEditorWidget = class DiffEditorWidget extends Disposable {
         if (options.modifiedAriaLabel) {
             result.ariaLabel = options.modifiedAriaLabel;
         }
+        result.ariaLabel += ariaNavigationTip;
         result.wordWrapOverride1 = this._options.diffWordWrap;
         result.revealHorizontalRightPadding = EditorOptions.revealHorizontalRightPadding.defaultValue + DiffEditorWidget.ENTIRE_DIFF_OVERVIEW_WIDTH;
         result.scrollbar.verticalHasArrows = false;
@@ -972,9 +1030,8 @@ let DiffEditorWidget = class DiffEditorWidget extends Disposable {
         };
     }
     _setStrategy(newStrategy) {
-        if (this._strategy) {
-            this._strategy.dispose();
-        }
+        var _a;
+        (_a = this._strategy) === null || _a === void 0 ? void 0 : _a.dispose();
         this._strategy = newStrategy;
         newStrategy.applyColors(this._themeService.getColorTheme());
         if (this._diffComputationResult) {
@@ -1063,14 +1120,13 @@ DiffEditorWidget.ENTIRE_DIFF_OVERVIEW_WIDTH = 30;
 DiffEditorWidget.UPDATE_DIFF_DECORATIONS_DELAY = 200; // ms
 DiffEditorWidget = __decorate([
     __param(3, IClipboardService),
-    __param(4, IEditorWorkerService),
-    __param(5, IContextKeyService),
-    __param(6, IInstantiationService),
-    __param(7, ICodeEditorService),
-    __param(8, IThemeService),
-    __param(9, INotificationService),
-    __param(10, IContextMenuService),
-    __param(11, IEditorProgressService)
+    __param(4, IContextKeyService),
+    __param(5, IInstantiationService),
+    __param(6, ICodeEditorService),
+    __param(7, IThemeService),
+    __param(8, INotificationService),
+    __param(9, IContextMenuService),
+    __param(10, IEditorProgressService)
 ], DiffEditorWidget);
 export { DiffEditorWidget };
 class DiffEditorWidgetStyle extends Disposable {
@@ -1151,8 +1207,8 @@ class ViewZonesComputer {
     getViewZones() {
         const originalLineHeight = this._originalEditor.getOption(60 /* EditorOption.lineHeight */);
         const modifiedLineHeight = this._modifiedEditor.getOption(60 /* EditorOption.lineHeight */);
-        const originalHasWrapping = (this._originalEditor.getOption(133 /* EditorOption.wrappingInfo */).wrappingColumn !== -1);
-        const modifiedHasWrapping = (this._modifiedEditor.getOption(133 /* EditorOption.wrappingInfo */).wrappingColumn !== -1);
+        const originalHasWrapping = (this._originalEditor.getOption(134 /* EditorOption.wrappingInfo */).wrappingColumn !== -1);
+        const modifiedHasWrapping = (this._modifiedEditor.getOption(134 /* EditorOption.wrappingInfo */).wrappingColumn !== -1);
         const hasWrapping = (originalHasWrapping || modifiedHasWrapping);
         const originalModel = this._originalEditor.getModel();
         const originalCoordinatesConverter = this._originalEditor._getViewModel().coordinatesConverter;
@@ -1838,9 +1894,9 @@ class InlineViewZonesComputer extends ViewZonesComputer {
         const mightContainNonBasicASCII = this._originalModel.mightContainNonBasicASCII();
         const mightContainRTL = this._originalModel.mightContainRTL();
         const lineHeight = modifiedEditorOptions.get(60 /* EditorOption.lineHeight */);
-        const layoutInfo = modifiedEditorOptions.get(132 /* EditorOption.layoutInfo */);
+        const layoutInfo = modifiedEditorOptions.get(133 /* EditorOption.layoutInfo */);
         const lineDecorationsWidth = layoutInfo.decorationsWidth;
-        const stopRenderingLineAfter = modifiedEditorOptions.get(106 /* EditorOption.stopRenderingLineAfter */);
+        const stopRenderingLineAfter = modifiedEditorOptions.get(107 /* EditorOption.stopRenderingLineAfter */);
         const renderWhitespace = modifiedEditorOptions.get(89 /* EditorOption.renderWhitespace */);
         const renderControlCharacters = modifiedEditorOptions.get(84 /* EditorOption.renderControlCharacters */);
         const fontLigatures = modifiedEditorOptions.get(46 /* EditorOption.fontLigatures */);
@@ -1862,7 +1918,7 @@ class InlineViewZonesComputer extends ViewZonesComputer {
                 }
             }
             const hasCharChanges = (decorations.length > 0);
-            const sb = createStringBuilder(10000);
+            const sb = new StringBuilder(10000);
             let maxCharsPerLine = 0;
             let renderedLineCount = 0;
             let viewLineCounts = null;
@@ -1994,6 +2050,7 @@ function validateDiffEditorOptions(options, defaults) {
         diffCodeLens: validateBooleanOption(options.diffCodeLens, defaults.diffCodeLens),
         renderOverviewRuler: validateBooleanOption(options.renderOverviewRuler, defaults.renderOverviewRuler),
         diffWordWrap: validateDiffWordWrap(options.diffWordWrap, defaults.diffWordWrap),
+        diffAlgorithm: validateStringSetOption(options.diffAlgorithm, defaults.diffAlgorithm, ['smart', 'experimental']),
     };
 }
 function changedDiffEditorOptions(a, b) {
@@ -2009,6 +2066,7 @@ function changedDiffEditorOptions(a, b) {
         diffCodeLens: (a.diffCodeLens !== b.diffCodeLens),
         renderOverviewRuler: (a.renderOverviewRuler !== b.renderOverviewRuler),
         diffWordWrap: (a.diffWordWrap !== b.diffWordWrap),
+        diffAlgorithm: (a.diffAlgorithm !== b.diffAlgorithm),
     };
 }
 registerThemingParticipant((theme, collector) => {

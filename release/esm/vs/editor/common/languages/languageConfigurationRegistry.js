@@ -355,4 +355,4 @@ export class ResolvedLanguageConfiguration {
         return comments;
     }
 }
-registerSingleton(ILanguageConfigurationService, LanguageConfigurationService);
+registerSingleton(ILanguageConfigurationService, LanguageConfigurationService, 1 /* InstantiationType.Delayed */);

@@ -21,13 +21,13 @@ import { ContextKeyExpr } from '../../../../platform/contextkey/common/contextke
 import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
 import { ParameterHintsWidget } from './parameterHintsWidget.js';
 let ParameterHintsController = class ParameterHintsController extends Disposable {
+    static get(editor) {
+        return editor.getContribution(ParameterHintsController.ID);
+    }
     constructor(editor, instantiationService) {
         super();
         this.editor = editor;
         this.widget = this._register(instantiationService.createInstance(ParameterHintsWidget, this.editor));
-    }
-    static get(editor) {
-        return editor.getContribution(ParameterHintsController.ID);
     }
     cancel() {
         this.widget.cancel();

@@ -22,28 +22,31 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 import { DataTransfers } from '../../../../base/browser/dnd.js';
 import { addDisposableListener } from '../../../../base/browser/dom.js';
-import { createCancelablePromise } from '../../../../base/common/async.js';
+import { createCancelablePromise, raceCancellation } from '../../../../base/common/async.js';
 import { createStringDataTransferItem } from '../../../../base/common/dataTransfer.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { Mimes } from '../../../../base/common/mime.js';
 import { generateUuid } from '../../../../base/common/uuid.js';
 import { toVSDataTransfer, UriList } from '../../../browser/dnd.js';
-import { IBulkEditService, ResourceEdit } from '../../../browser/services/bulkEditService.js';
+import { IBulkEditService, ResourceTextEdit } from '../../../browser/services/bulkEditService.js';
 import { Range } from '../../../common/core/range.js';
+import { Selection } from '../../../common/core/selection.js';
 import { ILanguageFeaturesService } from '../../../common/services/languageFeatures.js';
 import { EditorStateCancellationTokenSource } from '../../editorState/browser/editorState.js';
-import { performSnippetEdit } from '../../snippet/browser/snippetController2.js';
 import { SnippetParser } from '../../snippet/browser/snippetParser.js';
+import { localize } from '../../../../nls.js';
 import { IClipboardService } from '../../../../platform/clipboard/common/clipboardService.js';
 import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
+import { IProgressService } from '../../../../platform/progress/common/progress.js';
 const vscodeClipboardMime = 'application/vnd.code.copyMetadata';
 let CopyPasteController = class CopyPasteController extends Disposable {
-    constructor(editor, _bulkEditService, _clipboardService, _configurationService, _languageFeaturesService) {
+    constructor(editor, _bulkEditService, _clipboardService, _configurationService, _languageFeaturesService, _progressService) {
         super();
         this._bulkEditService = _bulkEditService;
         this._clipboardService = _clipboardService;
         this._configurationService = _configurationService;
         this._languageFeaturesService = _languageFeaturesService;
+        this._progressService = _progressService;
         this._editor = editor;
         const container = editor.getContainerDomNode();
         this._register(addDisposableListener(container, 'copy', e => this.handleCopy(e)));
@@ -107,7 +110,7 @@ let CopyPasteController = class CopyPasteController extends Disposable {
         dataTransfer.setData(vscodeClipboardMime, JSON.stringify(metadata));
     }
     handlePaste(e) {
-        var _a, _b, _c;
+        var _a, _b, _c, _d;
         return __awaiter(this, void 0, void 0, function* () {
             if (!e.clipboardData || !this._editor.hasTextFocus()) {
                 return;
@@ -131,62 +134,96 @@ let CopyPasteController = class CopyPasteController extends Disposable {
             }
             e.preventDefault();
             e.stopImmediatePropagation();
-            const originalDocVersion = model.getVersionId();
             const tokenSource = new EditorStateCancellationTokenSource(this._editor, 1 /* CodeEditorStateFlag.Value */ | 2 /* CodeEditorStateFlag.Selection */);
             try {
                 const dataTransfer = toVSDataTransfer(e.clipboardData);
                 if ((metadata === null || metadata === void 0 ? void 0 : metadata.id) && ((_b = this._currentClipboardItem) === null || _b === void 0 ? void 0 : _b.handle) === metadata.id) {
                     const toMergeDataTransfer = yield this._currentClipboardItem.dataTransferPromise;
+                    if (tokenSource.token.isCancellationRequested) {
+                        return;
+                    }
                     toMergeDataTransfer.forEach((value, key) => {
                         dataTransfer.replace(key, value);
                     });
                 }
                 if (!dataTransfer.has(Mimes.uriList)) {
                     const resources = yield this._clipboardService.readResources();
+                    if (tokenSource.token.isCancellationRequested) {
+                        return;
+                    }
                     if (resources.length) {
                         dataTransfer.append(Mimes.uriList, createStringDataTransferItem(UriList.create(resources)));
                     }
                 }
                 dataTransfer.delete(vscodeClipboardMime);
-                for (const provider of providers) {
-                    if (!provider.pasteMimeTypes.some(type => {
-                        if (type.toLowerCase() === DataTransfers.FILES.toLowerCase()) {
-                            return [...dataTransfer.values()].some(item => item.asFile());
-                        }
-                        return dataTransfer.has(type);
-                    })) {
-                        continue;
-                    }
-                    const edit = yield provider.provideDocumentPasteEdits(model, selections, dataTransfer, tokenSource.token);
-                    if (originalDocVersion !== model.getVersionId()) {
-                        return;
-                    }
-                    if (edit) {
-                        performSnippetEdit(this._editor, typeof edit.insertText === 'string' ? SnippetParser.escape(edit.insertText) : edit.insertText.snippet, selections);
-                        if (edit.additionalEdit) {
-                            yield this._bulkEditService.apply(ResourceEdit.convert(edit.additionalEdit), { editor: this._editor });
-                        }
-                        return;
-                    }
-                }
-                // Default handler
-                const textDataTransfer = (_c = dataTransfer.get(Mimes.text)) !== null && _c !== void 0 ? _c : dataTransfer.get('text');
-                if (!textDataTransfer) {
-                    return;
-                }
-                const text = yield textDataTransfer.asString();
-                if (originalDocVersion !== model.getVersionId()) {
-                    return;
-                }
-                this._editor.trigger('keyboard', "paste" /* Handler.Paste */, {
-                    text: text,
-                    pasteOnNewLine: metadata === null || metadata === void 0 ? void 0 : metadata.wasFromEmptySelection,
-                    multicursorText: null
+                const providerEdit = yield this._progressService.withProgress({
+                    location: 15 /* ProgressLocation.Notification */,
+                    delay: 750,
+                    title: localize('pasteProgressTitle', "Running paste handlers..."),
+                    cancellable: true,
+                }, () => {
+                    return this.getProviderPasteEdit(providers, dataTransfer, model, selections, tokenSource.token);
+                }, () => {
+                    return tokenSource.cancel();
                 });
+                if (tokenSource.token.isCancellationRequested) {
+                    return;
+                }
+                if (providerEdit) {
+                    const snippet = typeof providerEdit.insertText === 'string' ? SnippetParser.escape(providerEdit.insertText) : providerEdit.insertText.snippet;
+                    const combinedWorkspaceEdit = {
+                        edits: [
+                            new ResourceTextEdit(model.uri, {
+                                range: Selection.liftSelection(this._editor.getSelection()),
+                                text: snippet,
+                                insertAsSnippet: true,
+                            }),
+                            ...((_d = (_c = providerEdit.additionalEdit) === null || _c === void 0 ? void 0 : _c.edits) !== null && _d !== void 0 ? _d : [])
+                        ]
+                    };
+                    yield this._bulkEditService.apply(combinedWorkspaceEdit, { editor: this._editor });
+                    return;
+                }
+                yield this.applyDefaultPasteHandler(dataTransfer, metadata, tokenSource.token);
             }
             finally {
                 tokenSource.dispose();
             }
+        });
+    }
+    getProviderPasteEdit(providers, dataTransfer, model, selections, token) {
+        return raceCancellation((() => __awaiter(this, void 0, void 0, function* () {
+            for (const provider of providers) {
+                if (token.isCancellationRequested) {
+                    return;
+                }
+                if (!isSupportedProvider(provider, dataTransfer)) {
+                    continue;
+                }
+                const edit = yield provider.provideDocumentPasteEdits(model, selections, dataTransfer, token);
+                if (edit) {
+                    return edit;
+                }
+            }
+            return undefined;
+        }))(), token);
+    }
+    applyDefaultPasteHandler(dataTransfer, metadata, token) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            const textDataTransfer = (_a = dataTransfer.get(Mimes.text)) !== null && _a !== void 0 ? _a : dataTransfer.get('text');
+            if (!textDataTransfer) {
+                return;
+            }
+            const text = yield textDataTransfer.asString();
+            if (token.isCancellationRequested) {
+                return;
+            }
+            this._editor.trigger('keyboard', "paste" /* Handler.Paste */, {
+                text: text,
+                pasteOnNewLine: metadata === null || metadata === void 0 ? void 0 : metadata.wasFromEmptySelection,
+                multicursorText: null
+            });
         });
     }
 };
@@ -195,6 +232,15 @@ CopyPasteController = __decorate([
     __param(1, IBulkEditService),
     __param(2, IClipboardService),
     __param(3, IConfigurationService),
-    __param(4, ILanguageFeaturesService)
+    __param(4, ILanguageFeaturesService),
+    __param(5, IProgressService)
 ], CopyPasteController);
 export { CopyPasteController };
+function isSupportedProvider(provider, dataTransfer) {
+    return provider.pasteMimeTypes.some(type => {
+        if (type.toLowerCase() === DataTransfers.FILES.toLowerCase()) {
+            return [...dataTransfer.values()].some(item => item.asFile());
+        }
+        return dataTransfer.has(type);
+    });
+}

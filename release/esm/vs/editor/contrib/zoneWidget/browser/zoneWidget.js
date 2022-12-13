@@ -191,6 +191,7 @@ export class ZoneWidget {
         this.domNode.style.top = top + 'px';
     }
     _onViewZoneHeight(height) {
+        var _a;
         this.domNode.style.height = `${height}px`;
         if (this.container) {
             const containerHeight = height - this._decoratingElementsHeight();
@@ -198,9 +199,7 @@ export class ZoneWidget {
             const layoutInfo = this.editor.getLayoutInfo();
             this._doLayout(containerHeight, this._getWidth(layoutInfo));
         }
-        if (this._resizeSash) {
-            this._resizeSash.layout();
-        }
+        (_a = this._resizeSash) === null || _a === void 0 ? void 0 : _a.layout();
     }
     get position() {
         const range = this._positionMarkerId.getRange(0);
@@ -217,6 +216,7 @@ export class ZoneWidget {
         this._positionMarkerId.set([{ range, options: ModelDecorationOptions.EMPTY }]);
     }
     hide() {
+        var _a;
         if (this._viewZone) {
             this.editor.changeViewZones(accessor => {
                 if (this._viewZone) {
@@ -229,9 +229,7 @@ export class ZoneWidget {
             this.editor.removeOverlayWidget(this._overlayWidget);
             this._overlayWidget = null;
         }
-        if (this._arrow) {
-            this._arrow.hide();
-        }
+        (_a = this._arrow) === null || _a === void 0 ? void 0 : _a.hide();
     }
     _decoratingElementsHeight() {
         const lineHeight = this.editor.getOption(60 /* EditorOption.lineHeight */);

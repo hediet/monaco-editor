@@ -18,19 +18,6 @@ export class BareFontInfo {
     /**
      * @internal
      */
-    constructor(opts) {
-        this._bareFontInfoBrand = undefined;
-        this.pixelRatio = opts.pixelRatio;
-        this.fontFamily = String(opts.fontFamily);
-        this.fontWeight = String(opts.fontWeight);
-        this.fontSize = opts.fontSize;
-        this.fontFeatureSettings = opts.fontFeatureSettings;
-        this.lineHeight = opts.lineHeight | 0;
-        this.letterSpacing = opts.letterSpacing;
-    }
-    /**
-     * @internal
-     */
     static createFromValidatedSettings(options, pixelRatio, ignoreEditorZoom) {
         const fontFamily = options.get(44 /* EditorOption.fontFamily */);
         const fontWeight = options.get(48 /* EditorOption.fontWeight */);
@@ -68,6 +55,19 @@ export class BareFontInfo {
             lineHeight: lineHeight,
             letterSpacing: letterSpacing
         });
+    }
+    /**
+     * @internal
+     */
+    constructor(opts) {
+        this._bareFontInfoBrand = undefined;
+        this.pixelRatio = opts.pixelRatio;
+        this.fontFamily = String(opts.fontFamily);
+        this.fontWeight = String(opts.fontWeight);
+        this.fontSize = opts.fontSize;
+        this.fontFeatureSettings = opts.fontFeatureSettings;
+        this.lineHeight = opts.lineHeight | 0;
+        this.letterSpacing = opts.letterSpacing;
     }
     /**
      * @internal

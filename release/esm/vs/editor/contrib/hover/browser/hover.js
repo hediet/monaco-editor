@@ -30,6 +30,9 @@ import { HoverParticipantRegistry } from './hoverTypes.js';
 import { MarkdownHoverParticipant } from './markdownHoverParticipant.js';
 import { MarkerHoverParticipant } from './markerHoverParticipant.js';
 let ModesHoverController = class ModesHoverController {
+    static get(editor) {
+        return editor.getContribution(ModesHoverController.ID);
+    }
     constructor(_editor, _instantiationService, _openerService, _languageService, _contextKeyService) {
         this._editor = _editor;
         this._instantiationService = _instantiationService;
@@ -47,9 +50,6 @@ let ModesHoverController = class ModesHoverController {
                 this._hookEvents();
             }
         });
-    }
-    static get(editor) {
-        return editor.getContribution(ModesHoverController.ID);
     }
     _hookEvents() {
         const hideWidgetsEventHandler = () => this._hideWidgets();

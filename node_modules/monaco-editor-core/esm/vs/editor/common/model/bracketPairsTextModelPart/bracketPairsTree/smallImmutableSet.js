@@ -8,10 +8,6 @@ const emptyArr = new Array();
  * It uses bits to encode element membership efficiently.
 */
 export class SmallImmutableSet {
-    constructor(items, additionalItems) {
-        this.items = items;
-        this.additionalItems = additionalItems;
-    }
     static create(items, additionalItems) {
         if (items <= 128 && additionalItems.length === 0) {
             // We create a cache of 128=2^7 elements to cover all sets with up to 7 (dense) elements.
@@ -26,6 +22,10 @@ export class SmallImmutableSet {
     }
     static getEmpty() {
         return this.empty;
+    }
+    constructor(items, additionalItems) {
+        this.items = items;
+        this.additionalItems = additionalItems;
     }
     add(value, keyProvider) {
         const key = keyProvider.getKey(value);

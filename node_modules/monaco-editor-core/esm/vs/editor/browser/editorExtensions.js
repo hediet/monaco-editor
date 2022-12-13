@@ -8,7 +8,7 @@ import { ICodeEditorService } from './services/codeEditorService.js';
 import { Position } from '../common/core/position.js';
 import { IModelService } from '../common/services/model.js';
 import { ITextModelService } from '../common/services/resolverService.js';
-import { MenuId, MenuRegistry } from '../../platform/actions/common/actions.js';
+import { MenuId, MenuRegistry, Action2 } from '../../platform/actions/common/actions.js';
 import { CommandsRegistry } from '../../platform/commands/common/commands.js';
 import { ContextKeyExpr, IContextKeyService } from '../../platform/contextkey/common/contextkey.js';
 import { IInstantiationService } from '../../platform/instantiation/common/instantiation.js';
@@ -149,7 +149,7 @@ export class EditorCommand extends Command {
             }
         };
     }
-    runCommand(accessor, args) {
+    static runEditorCommand(accessor, args, precondition, runner) {
         const codeEditorService = accessor.get(ICodeEditorService);
         // Find the editor with text focus or active
         const editor = codeEditorService.getFocusedCodeEditor() || codeEditorService.getActiveCodeEditor();
@@ -159,20 +159,18 @@ export class EditorCommand extends Command {
         }
         return editor.invokeWithinContext((editorAccessor) => {
             const kbService = editorAccessor.get(IContextKeyService);
-            if (!kbService.contextMatchesRules(withNullAsUndefined(this.precondition))) {
+            if (!kbService.contextMatchesRules(withNullAsUndefined(precondition))) {
                 // precondition does not hold
                 return;
             }
-            return this.runEditorCommand(editorAccessor, editor, args);
+            return runner(editorAccessor, editor, args);
         });
+    }
+    runCommand(accessor, args) {
+        return EditorCommand.runEditorCommand(accessor, args, this.precondition, (accessor, editor, args) => this.runEditorCommand(accessor, editor, args));
     }
 }
 export class EditorAction extends EditorCommand {
-    constructor(opts) {
-        super(EditorAction.convertOptions(opts));
-        this.label = opts.label;
-        this.alias = opts.alias;
-    }
     static convertOptions(opts) {
         let menuOpts;
         if (Array.isArray(opts.menuOpts)) {
@@ -202,6 +200,11 @@ export class EditorAction extends EditorCommand {
         }
         opts.menuOpts = menuOpts;
         return opts;
+    }
+    constructor(opts) {
+        super(EditorAction.convertOptions(opts));
+        this.label = opts.label;
+        this.alias = opts.alias;
     }
     runEditorCommand(accessor, editor, args) {
         this.reportTelemetry(accessor, editor);
@@ -243,6 +246,26 @@ export class MultiEditorAction extends EditorAction {
                 return result;
             }
         }
+    }
+}
+//#endregion EditorAction
+//#region EditorAction2
+export class EditorAction2 extends Action2 {
+    run(accessor, ...args) {
+        // Find the editor with text focus or active
+        const codeEditorService = accessor.get(ICodeEditorService);
+        const editor = codeEditorService.getFocusedCodeEditor() || codeEditorService.getActiveCodeEditor();
+        if (!editor) {
+            // well, at least we tried...
+            return;
+        }
+        // precondition does hold
+        return editor.invokeWithinContext((editorAccessor) => {
+            const kbService = editorAccessor.get(IContextKeyService);
+            if (kbService.contextMatchesRules(withNullAsUndefined(this.desc.precondition))) {
+                return this.runEditorCommand(editorAccessor, editor, args);
+            }
+        });
     }
 }
 //#endregion
@@ -340,7 +363,7 @@ class EditorContributionRegistry {
         this.editorActions.push(action);
     }
     getEditorActions() {
-        return this.editorActions.slice(0);
+        return this.editorActions;
     }
     registerEditorCommand(editorCommand) {
         editorCommand.register();

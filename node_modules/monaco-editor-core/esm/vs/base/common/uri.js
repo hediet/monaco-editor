@@ -85,6 +85,22 @@ const _regexp = /^(([^:/?#]+?):)?(\/\/([^/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?/;
  * ```
  */
 export class URI {
+    static isUri(thing) {
+        if (thing instanceof URI) {
+            return true;
+        }
+        if (!thing) {
+            return false;
+        }
+        return typeof thing.authority === 'string'
+            && typeof thing.fragment === 'string'
+            && typeof thing.path === 'string'
+            && typeof thing.query === 'string'
+            && typeof thing.scheme === 'string'
+            && typeof thing.fsPath === 'string'
+            && typeof thing.with === 'function'
+            && typeof thing.toString === 'function';
+    }
     /**
      * @internal
      */
@@ -107,22 +123,6 @@ export class URI {
             this.fragment = fragment || _empty;
             _validateUri(this, _strict);
         }
-    }
-    static isUri(thing) {
-        if (thing instanceof URI) {
-            return true;
-        }
-        if (!thing) {
-            return false;
-        }
-        return typeof thing.authority === 'string'
-            && typeof thing.fragment === 'string'
-            && typeof thing.path === 'string'
-            && typeof thing.query === 'string'
-            && typeof thing.scheme === 'string'
-            && typeof thing.fsPath === 'string'
-            && typeof thing.with === 'function'
-            && typeof thing.toString === 'function';
     }
     // ---- filesystem path -----------------------
     /**

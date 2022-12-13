@@ -850,7 +850,7 @@ export class AbstractCaseAction extends EditorAction {
         if (model === null) {
             return;
         }
-        const wordSeparators = editor.getOption(118 /* EditorOption.wordSeparators */);
+        const wordSeparators = editor.getOption(119 /* EditorOption.wordSeparators */);
         const textEdits = [];
         for (const selection of selections) {
             if (selection.isEmpty()) {
@@ -968,14 +968,6 @@ export class SnakeCaseAction extends AbstractCaseAction {
 SnakeCaseAction.caseBoundary = new BackwardsCompatibleRegExp('(\\p{Ll})(\\p{Lu})', 'gmu');
 SnakeCaseAction.singleLetters = new BackwardsCompatibleRegExp('(\\p{Lu}|\\p{N})(\\p{Lu})(\\p{Ll})', 'gmu');
 export class KebabCaseAction extends AbstractCaseAction {
-    constructor() {
-        super({
-            id: 'editor.action.transformToKebabcase',
-            label: nls.localize('editor.transformToKebabcase', 'Transform to Kebab Case'),
-            alias: 'Transform to Kebab Case',
-            precondition: EditorContextKeys.writable
-        });
-    }
     static isSupported() {
         const areAllRegexpsSupported = [
             this.caseBoundary,
@@ -983,6 +975,14 @@ export class KebabCaseAction extends AbstractCaseAction {
             this.underscoreBoundary,
         ].every((regexp) => regexp.isSupported());
         return areAllRegexpsSupported;
+    }
+    constructor() {
+        super({
+            id: 'editor.action.transformToKebabcase',
+            label: nls.localize('editor.transformToKebabcase', 'Transform to Kebab Case'),
+            alias: 'Transform to Kebab Case',
+            precondition: EditorContextKeys.writable
+        });
     }
     _modifyText(text, _) {
         const caseBoundary = KebabCaseAction.caseBoundary.get();

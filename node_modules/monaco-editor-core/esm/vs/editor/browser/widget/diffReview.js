@@ -549,9 +549,9 @@ let DiffReview = class DiffReview extends Disposable {
         const modifiedLineStart = diffEntry.modifiedLineStart;
         const modifiedLineEnd = diffEntry.modifiedLineEnd;
         const cnt = Math.max(modifiedLineEnd - modifiedLineStart, originalLineEnd - originalLineStart);
-        const originalLayoutInfo = originalOptions.get(132 /* EditorOption.layoutInfo */);
+        const originalLayoutInfo = originalOptions.get(133 /* EditorOption.layoutInfo */);
         const originalLineNumbersWidth = originalLayoutInfo.glyphMarginWidth + originalLayoutInfo.lineNumbersWidth;
-        const modifiedLayoutInfo = modifiedOptions.get(132 /* EditorOption.layoutInfo */);
+        const modifiedLayoutInfo = modifiedOptions.get(133 /* EditorOption.layoutInfo */);
         const modifiedLineNumbersWidth = 10 + modifiedLayoutInfo.glyphMarginWidth + modifiedLayoutInfo.lineNumbersWidth;
         for (let i = 0; i <= cnt; i++) {
             const originalLine = (originalLineStart === 0 ? 0 : originalLineStart + i);
@@ -650,7 +650,7 @@ let DiffReview = class DiffReview extends Disposable {
         const lineTokens = LineTokens.createEmpty(lineContent, languageIdCodec);
         const isBasicASCII = ViewLineRenderingData.isBasicASCII(lineContent, model.mightContainNonBasicASCII());
         const containsRTL = ViewLineRenderingData.containsRTL(lineContent, isBasicASCII, model.mightContainRTL());
-        const r = renderViewLine(new RenderLineInput((fontInfo.isMonospace && !options.get(29 /* EditorOption.disableMonospaceOptimizations */)), fontInfo.canUseHalfwidthRightwardsArrow, lineContent, false, isBasicASCII, containsRTL, 0, lineTokens, [], tabSize, 0, fontInfo.spaceWidth, fontInfo.middotWidth, fontInfo.wsmiddotWidth, options.get(106 /* EditorOption.stopRenderingLineAfter */), options.get(89 /* EditorOption.renderWhitespace */), options.get(84 /* EditorOption.renderControlCharacters */), options.get(46 /* EditorOption.fontLigatures */) !== EditorFontLigatures.OFF, null));
+        const r = renderViewLine(new RenderLineInput((fontInfo.isMonospace && !options.get(29 /* EditorOption.disableMonospaceOptimizations */)), fontInfo.canUseHalfwidthRightwardsArrow, lineContent, false, isBasicASCII, containsRTL, 0, lineTokens, [], tabSize, 0, fontInfo.spaceWidth, fontInfo.middotWidth, fontInfo.wsmiddotWidth, options.get(107 /* EditorOption.stopRenderingLineAfter */), options.get(89 /* EditorOption.renderWhitespace */), options.get(84 /* EditorOption.renderControlCharacters */), options.get(46 /* EditorOption.fontLigatures */) !== EditorFontLigatures.OFF, null));
         return r.html;
     }
 };
@@ -686,9 +686,7 @@ class DiffReviewNext extends EditorAction {
     }
     run(accessor, editor) {
         const diffEditor = findFocusedDiffEditor(accessor);
-        if (diffEditor) {
-            diffEditor.diffReviewNext();
-        }
+        diffEditor === null || diffEditor === void 0 ? void 0 : diffEditor.diffReviewNext();
     }
 }
 class DiffReviewPrev extends EditorAction {
@@ -707,9 +705,7 @@ class DiffReviewPrev extends EditorAction {
     }
     run(accessor, editor) {
         const diffEditor = findFocusedDiffEditor(accessor);
-        if (diffEditor) {
-            diffEditor.diffReviewPrev();
-        }
+        diffEditor === null || diffEditor === void 0 ? void 0 : diffEditor.diffReviewPrev();
     }
 }
 function findFocusedDiffEditor(accessor) {

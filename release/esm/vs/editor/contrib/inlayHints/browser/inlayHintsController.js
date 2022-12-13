@@ -66,7 +66,7 @@ class InlayHintsCache {
     }
 }
 const IInlayHintsCache = createDecorator('IInlayHintsCache');
-registerSingleton(IInlayHintsCache, InlayHintsCache, true);
+registerSingleton(IInlayHintsCache, InlayHintsCache, 1 /* InstantiationType.Delayed */);
 // --- rendered label
 export class RenderedInlayHintLabelPart {
     constructor(item, index) {
@@ -91,6 +91,10 @@ class ActiveInlayHintInfo {
 }
 // --- controller
 let InlayHintsController = class InlayHintsController {
+    static get(editor) {
+        var _a;
+        return (_a = editor.getContribution(InlayHintsController.ID)) !== null && _a !== void 0 ? _a : undefined;
+    }
     constructor(_editor, _languageFeaturesService, _featureDebounce, _inlayHintsCache, _commandService, _notificationService, _instaService) {
         this._editor = _editor;
         this._languageFeaturesService = _languageFeaturesService;
@@ -108,15 +112,11 @@ let InlayHintsController = class InlayHintsController {
         this._disposables.add(_editor.onDidChangeModel(() => this._update()));
         this._disposables.add(_editor.onDidChangeModelLanguage(() => this._update()));
         this._disposables.add(_editor.onDidChangeConfiguration(e => {
-            if (e.hasChanged(128 /* EditorOption.inlayHints */)) {
+            if (e.hasChanged(129 /* EditorOption.inlayHints */)) {
                 this._update();
             }
         }));
         this._update();
-    }
-    static get(editor) {
-        var _a;
-        return (_a = editor.getContribution(InlayHintsController.ID)) !== null && _a !== void 0 ? _a : undefined;
     }
     dispose() {
         this._sessionDisposables.dispose();
@@ -126,7 +126,7 @@ let InlayHintsController = class InlayHintsController {
     _update() {
         this._sessionDisposables.clear();
         this._removeAllDecorations();
-        const options = this._editor.getOption(128 /* EditorOption.inlayHints */);
+        const options = this._editor.getOption(129 /* EditorOption.inlayHints */);
         if (options.enabled === 'off') {
             return;
         }
@@ -522,7 +522,7 @@ let InlayHintsController = class InlayHintsController {
         }
     }
     _getLayoutInfo() {
-        const options = this._editor.getOption(128 /* EditorOption.inlayHints */);
+        const options = this._editor.getOption(129 /* EditorOption.inlayHints */);
         const padding = options.padding;
         const editorFontSize = this._editor.getOption(47 /* EditorOption.fontSize */);
         const editorFontFamily = this._editor.getOption(44 /* EditorOption.fontFamily */);

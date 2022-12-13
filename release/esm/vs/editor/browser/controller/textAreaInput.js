@@ -4,6 +4,7 @@
  *--------------------------------------------------------------------------------------------*/
 import * as browser from '../../../base/browser/browser.js';
 import * as dom from '../../../base/browser/dom.js';
+import { DomEmitter } from '../../../base/browser/event.js';
 import { StandardKeyboardEvent } from '../../../base/browser/keyboardEvent.js';
 import { RunOnceScheduler } from '../../../base/common/async.js';
 import { Emitter } from '../../../base/common/event.js';
@@ -478,17 +479,17 @@ export class TextAreaWrapper extends Disposable {
     constructor(_actual) {
         super();
         this._actual = _actual;
-        this.onKeyDown = this._register(dom.createEventEmitter(this._actual, 'keydown')).event;
-        this.onKeyUp = this._register(dom.createEventEmitter(this._actual, 'keyup')).event;
-        this.onCompositionStart = this._register(dom.createEventEmitter(this._actual, 'compositionstart')).event;
-        this.onCompositionUpdate = this._register(dom.createEventEmitter(this._actual, 'compositionupdate')).event;
-        this.onCompositionEnd = this._register(dom.createEventEmitter(this._actual, 'compositionend')).event;
-        this.onInput = this._register(dom.createEventEmitter(this._actual, 'input')).event;
-        this.onCut = this._register(dom.createEventEmitter(this._actual, 'cut')).event;
-        this.onCopy = this._register(dom.createEventEmitter(this._actual, 'copy')).event;
-        this.onPaste = this._register(dom.createEventEmitter(this._actual, 'paste')).event;
-        this.onFocus = this._register(dom.createEventEmitter(this._actual, 'focus')).event;
-        this.onBlur = this._register(dom.createEventEmitter(this._actual, 'blur')).event;
+        this.onKeyDown = this._register(new DomEmitter(this._actual, 'keydown')).event;
+        this.onKeyUp = this._register(new DomEmitter(this._actual, 'keyup')).event;
+        this.onCompositionStart = this._register(new DomEmitter(this._actual, 'compositionstart')).event;
+        this.onCompositionUpdate = this._register(new DomEmitter(this._actual, 'compositionupdate')).event;
+        this.onCompositionEnd = this._register(new DomEmitter(this._actual, 'compositionend')).event;
+        this.onInput = this._register(new DomEmitter(this._actual, 'input')).event;
+        this.onCut = this._register(new DomEmitter(this._actual, 'cut')).event;
+        this.onCopy = this._register(new DomEmitter(this._actual, 'copy')).event;
+        this.onPaste = this._register(new DomEmitter(this._actual, 'paste')).event;
+        this.onFocus = this._register(new DomEmitter(this._actual, 'focus')).event;
+        this.onBlur = this._register(new DomEmitter(this._actual, 'blur')).event;
         this._onSyntheticTap = this._register(new Emitter());
         this.onSyntheticTap = this._onSyntheticTap.event;
         this._ignoreSelectionChangeTime = 0;

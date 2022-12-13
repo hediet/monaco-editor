@@ -67,13 +67,11 @@ export class ViewLines extends ViewPart {
         const conf = this._context.configuration;
         const options = this._context.configuration.options;
         const fontInfo = options.get(45 /* EditorOption.fontInfo */);
-        const wrappingInfo = options.get(133 /* EditorOption.wrappingInfo */);
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const wrappingInfo = options.get(134 /* EditorOption.wrappingInfo */);
         this._lineHeight = options.get(60 /* EditorOption.lineHeight */);
         this._typicalHalfwidthCharacterWidth = fontInfo.typicalHalfwidthCharacterWidth;
         this._isViewportWrapping = wrappingInfo.isViewportWrapping;
         this._revealHorizontalRightPadding = options.get(90 /* EditorOption.revealHorizontalRightPadding */);
-        this._horizontalScrollbarHeight = layoutInfo.horizontalScrollbarHeight;
         this._cursorSurroundingLines = options.get(25 /* EditorOption.cursorSurroundingLines */);
         this._cursorSurroundingLinesStyle = options.get(26 /* EditorOption.cursorSurroundingLinesStyle */);
         this._canUseLayerHinting = !options.get(28 /* EditorOption.disableLayerHinting */);
@@ -91,6 +89,9 @@ export class ViewLines extends ViewPart {
         }, 2000);
         this._lastRenderedData = new LastRenderedData();
         this._horizontalRevealRequest = null;
+        // sticky scroll widget
+        this._stickyScrollEnabled = options.get(105 /* EditorOption.stickyScroll */).enabled;
+        this._maxNumberStickyLines = options.get(105 /* EditorOption.stickyScroll */).maxLineCount;
     }
     dispose() {
         this._asyncUpdateLineWidths.dispose();
@@ -108,24 +109,25 @@ export class ViewLines extends ViewPart {
     // ---- begin view event handlers
     onConfigurationChanged(e) {
         this._visibleLines.onConfigurationChanged(e);
-        if (e.hasChanged(133 /* EditorOption.wrappingInfo */)) {
+        if (e.hasChanged(134 /* EditorOption.wrappingInfo */)) {
             this._maxLineWidth = 0;
         }
         const options = this._context.configuration.options;
         const fontInfo = options.get(45 /* EditorOption.fontInfo */);
-        const wrappingInfo = options.get(133 /* EditorOption.wrappingInfo */);
-        const layoutInfo = options.get(132 /* EditorOption.layoutInfo */);
+        const wrappingInfo = options.get(134 /* EditorOption.wrappingInfo */);
         this._lineHeight = options.get(60 /* EditorOption.lineHeight */);
         this._typicalHalfwidthCharacterWidth = fontInfo.typicalHalfwidthCharacterWidth;
         this._isViewportWrapping = wrappingInfo.isViewportWrapping;
         this._revealHorizontalRightPadding = options.get(90 /* EditorOption.revealHorizontalRightPadding */);
-        this._horizontalScrollbarHeight = layoutInfo.horizontalScrollbarHeight;
         this._cursorSurroundingLines = options.get(25 /* EditorOption.cursorSurroundingLines */);
         this._cursorSurroundingLinesStyle = options.get(26 /* EditorOption.cursorSurroundingLinesStyle */);
         this._canUseLayerHinting = !options.get(28 /* EditorOption.disableLayerHinting */);
+        // sticky scroll
+        this._stickyScrollEnabled = options.get(105 /* EditorOption.stickyScroll */).enabled;
+        this._maxNumberStickyLines = options.get(105 /* EditorOption.stickyScroll */).maxLineCount;
         applyFontInfo(this.domNode, fontInfo);
         this._onOptionsMaybeChanged();
-        if (e.hasChanged(132 /* EditorOption.layoutInfo */)) {
+        if (e.hasChanged(133 /* EditorOption.layoutInfo */)) {
             this._maxLineWidth = 0;
         }
         return true;
@@ -525,21 +527,32 @@ export class ViewLines extends ViewPart {
             return -1;
         }
         const shouldIgnoreScrollOff = (source === 'mouse' || minimalReveal) && this._cursorSurroundingLinesStyle === 'default';
+        let paddingTop = 0;
+        let paddingBottom = 0;
         if (!shouldIgnoreScrollOff) {
             const context = Math.min((viewportHeight / this._lineHeight) / 2, this._cursorSurroundingLines);
-            boxStartY -= context * this._lineHeight;
-            boxEndY += Math.max(0, (context - 1)) * this._lineHeight;
+            if (this._stickyScrollEnabled) {
+                paddingTop = Math.max(context, this._maxNumberStickyLines) * this._lineHeight;
+            }
+            else {
+                paddingTop = context * this._lineHeight;
+            }
+            paddingBottom = Math.max(0, (context - 1)) * this._lineHeight;
         }
         else {
             if (!minimalReveal) {
                 // Reveal one more line above (this case is hit when dragging)
-                boxStartY -= this._lineHeight;
+                paddingTop = this._lineHeight;
             }
         }
-        if (verticalType === 0 /* viewEvents.VerticalRevealType.Simple */ || verticalType === 4 /* viewEvents.VerticalRevealType.Bottom */) {
-            // Reveal one line more when the last line would be covered by the scrollbar - arrow down case or revealing a line explicitly at bottom
-            boxEndY += (minimalReveal ? this._horizontalScrollbarHeight : this._lineHeight);
+        if (!minimalReveal) {
+            if (verticalType === 0 /* viewEvents.VerticalRevealType.Simple */ || verticalType === 4 /* viewEvents.VerticalRevealType.Bottom */) {
+                // Reveal one line more when the last line would be covered by the scrollbar - arrow down case or revealing a line explicitly at bottom
+                paddingBottom += this._lineHeight;
+            }
         }
+        boxStartY -= paddingTop;
+        boxEndY += paddingBottom;
         let newScrollTop;
         if (boxEndY - boxStartY > viewportHeight) {
             // the box is larger than the viewport ... scroll to its top
@@ -582,8 +595,9 @@ export class ViewLines extends ViewPart {
     }
     _computeScrollLeftToReveal(horizontalRevealRequest) {
         const viewport = this._context.viewLayout.getCurrentViewport();
+        const layoutInfo = this._context.configuration.options.get(133 /* EditorOption.layoutInfo */);
         const viewportStartX = viewport.left;
-        const viewportEndX = viewportStartX + viewport.width;
+        const viewportEndX = viewportStartX + viewport.width - layoutInfo.verticalScrollbarWidth;
         let boxStartX = 1073741824 /* Constants.MAX_SAFE_SMALL_INTEGER */;
         let boxEndX = 0;
         if (horizontalRevealRequest.type === 'range') {
