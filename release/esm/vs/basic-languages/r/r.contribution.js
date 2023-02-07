@@ -1,6 +1,6 @@
 /*!-----------------------------------------------------------------------------
  * Copyright (c) Microsoft Corporation. All rights reserved.
- * Version: 0.34.1(8d5c4f0a8825a8151f612fa63d3466c1374ac3c9)
+ * Version: 0.34.1(478c324f7046c0ab60415d732a0687b384a02225)
  * Released under the MIT license
  * https://github.com/microsoft/monaco-editor/blob/main/LICENSE.txt
  *-----------------------------------------------------------------------------*/
