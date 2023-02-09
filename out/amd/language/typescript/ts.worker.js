@@ -1,17 +1,1 @@
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
-define(["require", "exports", "monaco-editor-core/esm/vs/editor/editor.worker", "./tsWorker", "./tsWorker"], function (require, exports, edworker, tsWorker_1, tsWorker_2) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.create = void 0;
-    self.onmessage = function () {
-        // ignore the first message
-        edworker.initialize(function (ctx, createData) {
-            return (0, tsWorker_1.create)(ctx, createData);
-        });
-    };
-    Object.defineProperty(exports, "create", { enumerable: true, get: function () { return tsWorker_2.create; } });
-});
-//# sourceMappingURL=ts.worker.js.map
+define(["require","exports","monaco-editor-core/esm/vs/editor/editor.worker","./tsWorker","./tsWorker"],(function(e,r,t,o,i){"use strict";Object.defineProperty(r,"__esModule",{value:!0}),r.create=void 0,self.onmessage=function(){t.initialize((function(e,r){return(0,o.create)(e,r)}))},Object.defineProperty(r,"create",{enumerable:!0,get:function(){return i.create}})}));

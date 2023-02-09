@@ -1,10 +1,1 @@
-//
-// **NOTE**: Do not edit directly! This file is generated using `npm run import-typescript`
-//
-define(["require", "exports"], function (require, exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.typescriptVersion = void 0;
-    exports.typescriptVersion = "4.5.5";
-});
-//# sourceMappingURL=typescriptServicesMetadata.js.map
+define(["require","exports"],(function(e,i){"use strict";Object.defineProperty(i,"__esModule",{value:!0}),i.typescriptVersion=void 0,i.typescriptVersion="4.5.5"}));

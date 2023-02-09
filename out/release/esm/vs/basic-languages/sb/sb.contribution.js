@@ -1,23 +1,2 @@
-/*!-----------------------------------------------------------------------------
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Version: 0.34.1(fdd81a9401fff5b3842f030d1e86b624c77b5e69)
- * Released under the MIT license
- * https://github.com/microsoft/monaco-editor/blob/main/LICENSE.txt
- *-----------------------------------------------------------------------------*/
-
-// src/basic-languages/sb/sb.contribution.ts
-import { registerLanguage } from "../_.contribution";
-registerLanguage({
-  id: "sb",
-  extensions: [".sb"],
-  aliases: ["Small Basic", "sb"],
-  loader: () => {
-    if (false) {
-      return new Promise((resolve, reject) => {
-        __require(["vs/basic-languages/sb/sb"], resolve, reject);
-      });
-    } else {
-      return import("./sb");
-    }
-  }
-});
+/*! For license information please see sb.contribution.js.LICENSE.txt */
+import{registerLanguage}from"../_.contribution";registerLanguage({id:"sb",extensions:[".sb"],aliases:["Small Basic","sb"],loader:()=>import("./sb")});

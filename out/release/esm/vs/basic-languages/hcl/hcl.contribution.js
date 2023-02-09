@@ -1,23 +1,2 @@
-/*!-----------------------------------------------------------------------------
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Version: 0.34.1(fdd81a9401fff5b3842f030d1e86b624c77b5e69)
- * Released under the MIT license
- * https://github.com/microsoft/monaco-editor/blob/main/LICENSE.txt
- *-----------------------------------------------------------------------------*/
-
-// src/basic-languages/hcl/hcl.contribution.ts
-import { registerLanguage } from "../_.contribution";
-registerLanguage({
-  id: "hcl",
-  extensions: [".tf", ".tfvars", ".hcl"],
-  aliases: ["Terraform", "tf", "HCL", "hcl"],
-  loader: () => {
-    if (false) {
-      return new Promise((resolve, reject) => {
-        __require(["vs/basic-languages/hcl/hcl"], resolve, reject);
-      });
-    } else {
-      return import("./hcl");
-    }
-  }
-});
+/*! For license information please see hcl.contribution.js.LICENSE.txt */
+import{registerLanguage}from"../_.contribution";registerLanguage({id:"hcl",extensions:[".tf",".tfvars",".hcl"],aliases:["Terraform","tf","HCL","hcl"],loader:()=>import("./hcl")});
