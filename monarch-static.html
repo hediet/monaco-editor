@@ -8,12 +8,6 @@
 
 		<link
 			data-inline="yes-please"
-			href="./all.css"
-			rel="stylesheet"
-			type="text/css"
-		/>
-		<link
-			data-inline="yes-please"
 			href="./monarch/monarch.css"
 			rel="stylesheet"
 		/>
@@ -21,7 +15,7 @@
 		<link
 			data-name="vs/editor/editor.main"
 			rel="stylesheet"
-			href="../node_modules/monaco-editor/dev/vs/editor/editor.main.css"
+			href="./node_modules/monaco-editor/dev/vs/editor/editor.main.css"
 		/>
 	</head>
 	<body>
@@ -5340,12 +5334,12 @@ return {
 
 		<script>
 			var require = {
-				paths: { vs: "../node_modules/monaco-editor/dev/vs" },
+				paths: { vs: "./node_modules/monaco-editor/dev/vs" },
 			};
 		</script>
-		<script src="../node_modules/monaco-editor/dev/vs/loader.js"></script>
-		<script src="../node_modules/monaco-editor/dev/vs/editor/editor.main.nls.js"></script>
-		<script src="../node_modules/monaco-editor/dev/vs/editor/editor.main.js"></script>
+		<script src="./node_modules/monaco-editor/dev/vs/loader.js"></script>
+		<script src="./node_modules/monaco-editor/dev/vs/editor/editor.main.nls.js"></script>
+		<script src="./node_modules/monaco-editor/dev/vs/editor/editor.main.js"></script>
 
 		<script data-inline="yes-please" src="./monarch/monarch.js"></script>
 	</body>
