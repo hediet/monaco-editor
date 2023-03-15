@@ -4,5 +4,12 @@
 		"vscode": {
 			"extensions": ["ms-vscode.js-debug-nightly"]
 		}
+	},
+	"features": {
+		"desktop-lite": {
+			"password": "vscode",
+			"webPort": "6080",
+			"vncPort": "5901"
+		}
 	}
 }
